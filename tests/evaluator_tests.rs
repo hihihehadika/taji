@@ -3,24 +3,51 @@ use taji::lexer::Lexer;
 use taji::object::{Environment, Object};
 use taji::parser::Parser;
 
-/// Helper: parse & eval kode, kembalikan Object.
-fn test_eval(input: &str) -> Object {
-    let l = Lexer::new(input);
-    let mut p = Parser::new(l);
-    let program = p.parse_program();
+// ── Helper ───────────────────────────────────────────
 
-    assert!(
-        p.errors.is_empty(),
-        "Parser errors: {:?}",
-        p.errors
-    );
+fn test_eval(input: &str) -> Object {
+    let lexer = Lexer::new(input);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    if !parser.errors.is_empty() {
+        panic!("Parser errors for input '{}':\n{}", input, parser.errors.join("\n"));
+    }
 
     let mut env = Environment::new();
     evaluator::eval(&program, &mut env)
 }
 
+fn test_integer_object(obj: &Object, expected: i64) {
+    match obj {
+        Object::Integer(val) => assert_eq!(*val, expected, "expected {}, got {}", expected, val),
+        _ => panic!("expected Integer({}), got {:?}", expected, obj),
+    }
+}
+
+fn test_float_object(obj: &Object, expected: f64) {
+    match obj {
+        Object::Float(val) => {
+            assert!(
+                (*val - expected).abs() < 0.0001,
+                "expected ~{}, got {}",
+                expected,
+                val
+            );
+        }
+        _ => panic!("expected Float({}), got {:?}", expected, obj),
+    }
+}
+
+fn test_boolean_object(obj: &Object, expected: bool) {
+    match obj {
+        Object::Boolean(val) => assert_eq!(*val, expected),
+        _ => panic!("expected Boolean({}), got {:?}", expected, obj),
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
-//  Test: Evaluasi Angka Bulat
+//  Existing tests (v0.1.0)
 // ═══════════════════════════════════════════════════════════
 
 #[test]
@@ -47,13 +74,9 @@ fn test_eval_integer_expression() {
 
     for (input, expected) in tests {
         let result = test_eval(input);
-        assert_integer_object(result, expected, input);
+        test_integer_object(&result, expected);
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Evaluasi Boolean
-// ═══════════════════════════════════════════════════════════
 
 #[test]
 fn test_eval_boolean_expression() {
@@ -82,17 +105,17 @@ fn test_eval_boolean_expression() {
         ("2 >= 1", true),
         ("2 >= 2", true),
         ("2 >= 3", false),
+        ("benar dan benar", true),
+        ("benar dan salah", false),
+        ("benar atau salah", true),
+        ("salah atau salah", false),
     ];
 
     for (input, expected) in tests {
         let result = test_eval(input);
-        assert_boolean_object(result, expected, input);
+        test_boolean_object(&result, expected);
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Operator Bang (!)
-// ═══════════════════════════════════════════════════════════
 
 #[test]
 fn test_bang_operator() {
@@ -103,17 +126,15 @@ fn test_bang_operator() {
         ("!!benar", true),
         ("!!salah", false),
         ("!!5", true),
+        ("bukan benar", false),
+        ("bukan salah", true),
     ];
 
     for (input, expected) in tests {
         let result = test_eval(input);
-        assert_boolean_object(result, expected, input);
+        test_boolean_object(&result, expected);
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Ekspresi Jika/Lainnya
-// ═══════════════════════════════════════════════════════════
 
 #[test]
 fn test_jika_lainnya_expressions() {
@@ -130,20 +151,11 @@ fn test_jika_lainnya_expressions() {
     for (input, expected) in tests {
         let result = test_eval(input);
         match expected {
-            Some(val) => assert_integer_object(result, val, input),
-            None => assert!(
-                matches!(result, Object::Null),
-                "input '{}': diharapkan Null, diterima {:?}",
-                input,
-                result
-            ),
+            Some(val) => test_integer_object(&result, val),
+            None => assert!(matches!(result, Object::Null)),
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Pernyataan Kembalikan
-// ═══════════════════════════════════════════════════════════
 
 #[test]
 fn test_kembalikan_statements() {
@@ -156,225 +168,9 @@ fn test_kembalikan_statements() {
 
     for (input, expected) in tests {
         let result = test_eval(input);
-        assert_integer_object(result, expected, input);
+        test_integer_object(&result, expected);
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Pernyataan Misalkan (Variabel)
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_misalkan_statements() {
-    let tests = vec![
-        ("misalkan a = 5; a;", 5),
-        ("misalkan a = 5 * 5; a;", 25),
-        ("misalkan a = 5; misalkan b = a; b;", 5),
-        (
-            "misalkan a = 5; misalkan b = a; misalkan c = a + b + 5; c;",
-            15,
-        ),
-    ];
-
-    for (input, expected) in tests {
-        let result = test_eval(input);
-        assert_integer_object(result, expected, input);
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Fungsi & Pemanggilan
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_function_object() {
-    let input = "fungsi(x) { x + 2; };";
-    let result = test_eval(input);
-
-    match result {
-        Object::Function(f) => {
-            assert_eq!(f.parameters.len(), 1);
-            assert_eq!(f.parameters[0].value, "x");
-        }
-        _ => panic!("diharapkan Function, diterima {:?}", result),
-    }
-}
-
-#[test]
-fn test_function_application() {
-    let tests = vec![
-        ("misalkan ident = fungsi(x) { x; }; ident(5);", 5),
-        ("misalkan ident = fungsi(x) { kembalikan x; }; ident(5);", 5),
-        ("misalkan double = fungsi(x) { x * 2; }; double(5);", 10),
-        ("misalkan add = fungsi(x, y) { x + y; }; add(5, 5);", 10),
-        (
-            "misalkan add = fungsi(x, y) { x + y; }; add(5 + 5, add(5, 5));",
-            20,
-        ),
-        ("fungsi(x) { x; }(5)", 5),
-    ];
-
-    for (input, expected) in tests {
-        let result = test_eval(input);
-        assert_integer_object(result, expected, input);
-    }
-}
-
-#[test]
-fn test_closures() {
-    let input = r#"
-        misalkan pembuat_penambah = fungsi(x) {
-            fungsi(y) { x + y; };
-        };
-        misalkan tambah_dua = pembuat_penambah(2);
-        tambah_dua(3);
-    "#;
-
-    let result = test_eval(input);
-    assert_integer_object(result, 5, input);
-}
-
-#[test]
-fn test_recursion() {
-    let input = r#"
-        misalkan fibonacci = fungsi(x) {
-            jika (x < 2) {
-                kembalikan x;
-            };
-            kembalikan fibonacci(x - 1) + fibonacci(x - 2);
-        };
-        fibonacci(10);
-    "#;
-
-    let result = test_eval(input);
-    assert_integer_object(result, 55, input);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: String
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_string_literal() {
-    let input = r#""halo dunia""#;
-    let result = test_eval(input);
-
-    match result {
-        Object::Str(s) => assert_eq!(s, "halo dunia"),
-        _ => panic!("diharapkan Str, diterima {:?}", result),
-    }
-}
-
-#[test]
-fn test_string_concatenation() {
-    let input = r#""Halo" + " " + "Dunia!""#;
-    let result = test_eval(input);
-
-    match result {
-        Object::Str(s) => assert_eq!(s, "Halo Dunia!"),
-        _ => panic!("diharapkan Str, diterima {:?}", result),
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Fungsi Bawaan (Built-in)
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_builtin_panjang() {
-    let tests = vec![
-        (r#"panjang("")"#, 0),
-        (r#"panjang("empat")"#, 5),
-        (r#"panjang("halo dunia")"#, 10),
-    ];
-
-    for (input, expected) in tests {
-        let result = test_eval(input);
-        assert_integer_object(result, expected, input);
-    }
-}
-
-#[test]
-fn test_builtin_panjang_array() {
-    let tests = vec![
-        ("panjang([1, 2, 3])", 3),
-        ("panjang([])", 0),
-    ];
-
-    for (input, expected) in tests {
-        let result = test_eval(input);
-        assert_integer_object(result, expected, input);
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Array
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_array_literal() {
-    let input = "[1, 2 * 2, 3 + 3]";
-    let result = test_eval(input);
-
-    match result {
-        Object::Array(elements) => {
-            assert_eq!(elements.len(), 3);
-            assert_integer_object(elements[0].clone(), 1, "arr[0]");
-            assert_integer_object(elements[1].clone(), 4, "arr[1]");
-            assert_integer_object(elements[2].clone(), 6, "arr[2]");
-        }
-        _ => panic!("diharapkan Array, diterima {:?}", result),
-    }
-}
-
-#[test]
-fn test_array_index_expressions() {
-    let tests: Vec<(&str, Option<i64>)> = vec![
-        ("[1, 2, 3][0]", Some(1)),
-        ("[1, 2, 3][1]", Some(2)),
-        ("[1, 2, 3][2]", Some(3)),
-        ("misalkan i = 0; [1][i];", Some(1)),
-        ("[1, 2, 3][1 + 1];", Some(3)),
-        ("misalkan arr = [1, 2, 3]; arr[2];", Some(3)),
-        ("[1, 2, 3][3]", None),
-        ("[1, 2, 3][-1]", None),
-    ];
-
-    for (input, expected) in tests {
-        let result = test_eval(input);
-        match expected {
-            Some(val) => assert_integer_object(result, val, input),
-            None => assert!(
-                matches!(result, Object::Null),
-                "input '{}': diharapkan Null, diterima {:?}",
-                input,
-                result
-            ),
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Hash (Kamus)
-// ═══════════════════════════════════════════════════════════
-
-#[test]
-fn test_hash_literal() {
-    let input = r#"
-        misalkan data = {"nama": "Taji", "versi": 1};
-        data["nama"];
-    "#;
-
-    let result = test_eval(input);
-    match result {
-        Object::Str(s) => assert_eq!(s, "Taji"),
-        _ => panic!("diharapkan Str, diterima {:?}", result),
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Test: Error Handling
-// ═══════════════════════════════════════════════════════════
 
 #[test]
 fn test_error_handling() {
@@ -382,27 +178,200 @@ fn test_error_handling() {
         ("5 + benar;", "tipe tidak cocok: BILANGAN + BOOLEAN"),
         ("5 + benar; 5;", "tipe tidak cocok: BILANGAN + BOOLEAN"),
         ("-benar", "operator tidak dikenal: -BOOLEAN"),
-        (
-            "benar + salah;",
-            "operator tidak dikenal: BOOLEAN + BOOLEAN",
-        ),
+        ("benar + salah;", "operator tidak dikenal: BOOLEAN + BOOLEAN"),
+        ("5; benar + salah; 5", "operator tidak dikenal: BOOLEAN + BOOLEAN"),
         ("foobar", "pengenal tidak dikenal: 'foobar'"),
     ];
 
     for (input, expected_msg) in tests {
         let result = test_eval(input);
         match result {
-            Object::Error(msg) => assert_eq!(
-                msg, expected_msg,
-                "pesan error salah untuk input: {}",
-                input
-            ),
-            _ => panic!(
-                "input '{}': diharapkan Error, diterima {:?}",
-                input, result
-            ),
+            Object::Error(msg) => assert_eq!(msg, expected_msg, "input: {}", input),
+            _ => panic!("expected error for '{}', got {:?}", input, result),
         }
     }
+}
+
+#[test]
+fn test_misalkan_statements() {
+    let tests = vec![
+        ("misalkan a = 5; a;", 5),
+        ("misalkan a = 5 * 5; a;", 25),
+        ("misalkan a = 5; misalkan b = a; b;", 5),
+        ("misalkan a = 5; misalkan b = a; misalkan c = a + b + 5; c;", 15),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_function_object() {
+    let input = "fungsi(x) { x + 2; };";
+    let result = test_eval(input);
+    match result {
+        Object::Function(f) => {
+            assert_eq!(f.parameters.len(), 1);
+            assert_eq!(f.parameters[0].value, "x");
+        }
+        _ => panic!("expected Function, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_function_application() {
+    let tests = vec![
+        ("misalkan id = fungsi(x) { x; }; id(5);", 5),
+        ("misalkan id = fungsi(x) { kembalikan x; }; id(5);", 5),
+        ("misalkan ganda = fungsi(x) { x * 2; }; ganda(5);", 10),
+        ("misalkan tambah = fungsi(x, y) { x + y; }; tambah(5, 5);", 10),
+        (
+            "misalkan tambah = fungsi(x, y) { x + y; }; tambah(5 + 5, tambah(5, 5));",
+            20,
+        ),
+        ("fungsi(x) { x; }(5)", 5),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_closures() {
+    let input = "
+        misalkan pembuat_penambah = fungsi(x) {
+            fungsi(y) { x + y; };
+        };
+        misalkan tambah_dua = pembuat_penambah(2);
+        tambah_dua(3);
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 5);
+}
+
+#[test]
+fn test_recursion() {
+    let input = "
+        misalkan fibonacci = fungsi(x) {
+            jika (x < 2) {
+                kembalikan x;
+            };
+            kembalikan fibonacci(x - 1) + fibonacci(x - 2);
+        };
+        fibonacci(10);
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 55);
+}
+
+#[test]
+fn test_string_literal() {
+    let result = test_eval("\"halo dunia\"");
+    match result {
+        Object::Str(s) => assert_eq!(s, "halo dunia"),
+        _ => panic!("expected String, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_string_concatenation() {
+    let result = test_eval("\"Halo\" + \" \" + \"Dunia!\"");
+    match result {
+        Object::Str(s) => assert_eq!(s, "Halo Dunia!"),
+        _ => panic!("expected String, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_panjang() {
+    let tests: Vec<(&str, i64)> = vec![
+        ("panjang(\"\")", 0),
+        ("panjang(\"empat\")", 5),
+        ("panjang(\"halo dunia\")", 10),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_builtin_panjang_array() {
+    let result = test_eval("panjang([1, 2, 3])");
+    test_integer_object(&result, 3);
+}
+
+#[test]
+fn test_array_literal() {
+    let result = test_eval("[1, 2 * 2, 3 + 3]");
+    match result {
+        Object::Array(elements) => {
+            assert_eq!(elements.len(), 3);
+            test_integer_object(&elements[0], 1);
+            test_integer_object(&elements[1], 4);
+            test_integer_object(&elements[2], 6);
+        }
+        _ => panic!("expected Array, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_array_index_expressions() {
+    let tests = vec![
+        ("[1, 2, 3][0]", 1),
+        ("[1, 2, 3][1]", 2),
+        ("[1, 2, 3][2]", 3),
+        ("misalkan i = 0; [1][i];", 1),
+        ("[1, 2, 3][1 + 1];", 3),
+        ("misalkan arr = [1, 2, 3]; arr[2];", 3),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_hash_literal() {
+    let input = r#"
+        misalkan dua = "dua";
+        {
+            "satu": 10 - 9,
+            dua: 1 + 1,
+            "ti" + "ga": 6 / 2,
+            4: 4,
+            benar: 5,
+            salah: 6
+        }
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Hash(pairs) => {
+            assert_eq!(pairs.len(), 6);
+        }
+        _ => panic!("expected Hash, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_selama_loop() {
+    let input = "
+        misalkan x = 0;
+        misalkan i = 0;
+        selama (i < 5) {
+            misalkan x = x + 1;
+            misalkan i = i + 1;
+        };
+        x;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 5);
 }
 
 #[test]
@@ -410,60 +379,273 @@ fn test_division_by_zero() {
     let result = test_eval("10 / 0");
     match result {
         Object::Error(msg) => {
-            assert_eq!(msg, "pembagian dengan nol tidak diizinkan")
+            assert_eq!(msg, "pembagian dengan nol tidak diizinkan");
         }
-        _ => panic!("diharapkan Error, diterima {:?}", result),
+        _ => panic!("expected error, got {:?}", result),
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Test: Selama (While Loop)
+//  NEW TESTS (v0.2.0)
 // ═══════════════════════════════════════════════════════════
 
 #[test]
-fn test_selama_loop() {
-    let input = r#"
-        misalkan x = 0;
-        misalkan hasil = 0;
-        selama (x < 5) {
-            misalkan hasil = hasil + x;
-            misalkan x = x + 1;
-        };
-        hasil;
-    "#;
+fn test_float_literals() {
+    let tests: Vec<(&str, f64)> = vec![
+        ("3.14", 3.14),
+        ("0.5", 0.5),
+        ("-2.5", -2.5),
+    ];
 
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_float_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_float_arithmetic() {
+    let tests: Vec<(&str, f64)> = vec![
+        ("1.5 + 2.5", 4.0),
+        ("10.0 - 3.5", 6.5),
+        ("2.0 * 3.0", 6.0),
+        ("10.0 / 4.0", 2.5),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_float_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_mixed_int_float_arithmetic() {
+    let tests: Vec<(&str, f64)> = vec![
+        ("5 + 2.5", 7.5),
+        ("2.5 + 5", 7.5),
+        ("10 * 1.5", 15.0),
+        ("7.0 / 2", 3.5),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_float_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_float_comparison() {
+    let tests = vec![
+        ("1.5 < 2.5", true),
+        ("2.5 > 1.5", true),
+        ("1.5 == 1.5", true),
+        ("1.5 != 2.5", true),
+        ("3.0 <= 3.0", true),
+        ("3.0 >= 4.0", false),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_boolean_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_compound_assignment() {
+    let tests = vec![
+        ("misalkan x = 10; x += 5; x;", 15),
+        ("misalkan x = 10; x -= 3; x;", 7),
+        ("misalkan x = 10; x *= 2; x;", 20),
+        ("misalkan x = 10; x /= 2; x;", 5),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_simple_assignment() {
+    let input = "misalkan x = 5; x = 10; x;";
     let result = test_eval(input);
-    assert_integer_object(result, 10, input);
+    test_integer_object(&result, 10);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  Helpers
-// ═══════════════════════════════════════════════════════════
+#[test]
+fn test_untuk_loop() {
+    let input = "
+        misalkan total = 0;
+        untuk (misalkan i = 1; i <= 5; i += 1) {
+            total += i;
+        };
+        total;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 15);  // 1+2+3+4+5
+}
 
-fn assert_integer_object(obj: Object, expected: i64, context: &str) {
-    match obj {
-        Object::Integer(val) => assert_eq!(
-            val, expected,
-            "input '{}': diharapkan {}, diterima {}",
-            context, expected, val
-        ),
-        _ => panic!(
-            "input '{}': diharapkan Integer({}), diterima {:?}",
-            context, expected, obj
-        ),
+#[test]
+fn test_untuk_loop_nested() {
+    let input = "
+        misalkan total = 0;
+        untuk (misalkan i = 0; i < 3; i += 1) {
+            untuk (misalkan j = 0; j < 3; j += 1) {
+                total += 1;
+            };
+        };
+        total;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 9);  // 3 * 3
+}
+
+#[test]
+fn test_berhenti_selama() {
+    let input = "
+        misalkan x = 0;
+        selama (benar) {
+            x += 1;
+            jika (x == 5) {
+                berhenti;
+            };
+        };
+        x;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 5);
+}
+
+#[test]
+fn test_berhenti_untuk() {
+    let input = "
+        misalkan total = 0;
+        untuk (misalkan i = 0; i < 100; i += 1) {
+            jika (i == 5) {
+                berhenti;
+            };
+            total += 1;
+        };
+        total;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 5);  // 0,1,2,3,4 → 5 iterasi
+}
+
+#[test]
+fn test_lanjut_untuk() {
+    let input = "
+        misalkan total = 0;
+        untuk (misalkan i = 0; i < 10; i += 1) {
+            jika (i % 2 == 0) {
+                lanjut;
+            };
+            total += 1;
+        };
+        total;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 5);  // ganjil: 1,3,5,7,9
+}
+
+#[test]
+fn test_dot_expression() {
+    let input = r#"
+        misalkan profil = {
+            "nama": "Dika",
+            "umur": 20
+        };
+        profil.nama;
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Dika"),
+        _ => panic!("expected String 'Dika', got {:?}", result),
     }
 }
 
-fn assert_boolean_object(obj: Object, expected: bool, context: &str) {
-    match obj {
-        Object::Boolean(val) => assert_eq!(
-            val, expected,
-            "input '{}': diharapkan {}, diterima {}",
-            context, expected, val
-        ),
-        _ => panic!(
-            "input '{}': diharapkan Boolean({}), diterima {:?}",
-            context, expected, obj
-        ),
+#[test]
+fn test_dot_expression_integer() {
+    let input = r#"
+        misalkan obj = { "x": 42 };
+        obj.x;
+    "#;
+    let result = test_eval(input);
+    test_integer_object(&result, 42);
+}
+
+#[test]
+fn test_builtin_teks() {
+    let tests: Vec<(&str, &str)> = vec![
+        ("teks(42)", "42"),
+        ("teks(benar)", "benar"),
+        ("teks(3.14)", "3.14"),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        match result {
+            Object::Str(s) => assert_eq!(s, expected, "input: {}", input),
+            _ => panic!("expected String '{}', got {:?}", expected, result),
+        }
     }
+}
+
+#[test]
+fn test_builtin_angka() {
+    let tests = vec![
+        ("angka(\"42\")", 42),
+        ("angka(\"100\")", 100),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_integer_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_builtin_angka_float() {
+    let input = "angka(\"3.14\")";
+    let result = test_eval(input);
+    test_float_object(&result, 3.14);
+}
+
+#[test]
+fn test_builtin_waktu() {
+    let result = test_eval("waktu()");
+    match result {
+        Object::Integer(val) => assert!(val > 0, "timestamp harus positif"),
+        _ => panic!("expected Integer timestamp, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_string_auto_concat() {
+    // String + Integer → auto convert
+    let input = "\"Umur: \" + 20";
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Umur: 20"),
+        _ => panic!("expected String, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_masukkan_import() {
+    // Buat file sementara untuk test import
+    let test_dir = std::env::current_dir().unwrap();
+    let test_file = test_dir.join("_test_modul.tj");
+    std::fs::write(&test_file, "misalkan x = 42; misalkan y = 100;").unwrap();
+
+    let input = format!(
+        "misalkan m = masukkan(\"{}\"); m.x + m.y;",
+        test_file.to_str().unwrap().replace('\\', "\\\\")
+    );
+
+    let result = test_eval(&input);
+    test_integer_object(&result, 142);
+
+    // Cleanup
+    std::fs::remove_file(test_file).unwrap();
 }

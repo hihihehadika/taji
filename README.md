@@ -2,9 +2,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/bahasa-Rust-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/versi-0.1.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/versi-0.2.0-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/lisensi-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/tests-43%2B%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-73%2B%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
   <img src="https://img.shields.io/badge/dependensi-0-purple?style=for-the-badge" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/sintaks-Bahasa%20Indonesia-red?style=for-the-badge" alt="Bahasa Indonesia">
 </p>
@@ -19,12 +19,13 @@ Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas 
 
 | Fitur | Deskripsi |
 | --- | --- |
-| 🇮🇩 **Sintaks Bahasa Indonesia** | Kata kunci: `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `kembalikan` |
-| 🔢 **Tipe Data Lengkap** | Bilangan bulat, teks (*string*), boolean (`benar`/`salah`), daftar (*array*), kamus (*hash map*) |
+| 🇮🇩 **Sintaks Bahasa Indonesia** | Kata kunci: `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut` |
+| 🔢 **Tipe Data Lengkap** | Bilangan bulat, desimal (*float*), teks (*string*), boolean (`benar`/`salah`), daftar (*array*), kamus (*hash map*) |
 | ⚡ **Fungsi & Closure** | Fungsi sebagai *first-class citizen*, mendukung closure dan rekursi |
-| 🔁 **Kontrol Alur** | Percabangan `jika`/`lainnya`, perulangan `selama` |
-| 🧮 **Operator Lengkap** | Aritmatika (`+`, `-`, `*`, `/`, `%`), perbandingan (`==`, `!=`, `<`, `>`, `<=`, `>=`), logika (`dan`, `atau`, `bukan`) |
-| 📦 **Fungsi Bawaan** | `cetak()`, `panjang()`, `tipe()`, `dorong()`, `pertama()`, `terakhir()`, `sisa()` |
+| 🔁 **Kontrol Alur** | Percabangan `jika`/`lainnya`, perulangan `selama` dan `untuk` |
+| 🧮 **Operator Lengkap** | Aritmatika (`+`, `-`, `*`, `/`, `%`), perbandingan (`==`, `!=`, `<`, `>`, `<=`, `>=`), logika (`dan`, `atau`, `bukan`), assignment (`=`, `+=`, `-=`, `*=`, `/=`) |
+| 📦 **Fungsi Bawaan** | `cetak()`, `tanya()`, `waktu()`, `teks()`, `angka()`, `panjang()`, `tipe()`, `dorong()`, `pertama()`, `terakhir()`, `sisa()` |
+| 🔗 **Sistem Modul** | Import langsung file lain menggunakan `masukkan("file.tj")` |
 | 💬 **Komentar** | Komentar satu baris dengan `//` |
 | 🛡️ **Error Handling** | Pesan kesalahan dalam Bahasa Indonesia yang jelas dan informatif |
 | 🖥️ **REPL Interaktif** | Terminal interaktif untuk menguji kode secara langsung |
@@ -57,7 +58,7 @@ cargo run
 ```
   ╔══════════════════════════════════════════════════╗
   ║     🗡️  TAJI — Bahasa Pemrograman Indonesia      ║
-  ║     Versi 0.1.0                                   ║
+  ║     Versi 0.2.0                                   ║
   ║     Ketik 'keluar' untuk berhenti.                ║
   ╚══════════════════════════════════════════════════╝
 
@@ -108,10 +109,18 @@ jika (nilai >= 90) {
 
 ### Perulangan
 ```taji
+// Menggunakan 'selama' (while loop)
 misalkan i = 0;
 selama (i < 5) {
     cetak(i);
-    misalkan i = i + 1;
+    i += 1;
+};
+
+// Menggunakan 'untuk' (for loop gaya C)
+misalkan total = 0;
+untuk (misalkan j = 1; j <= 5; j += 1) {
+    jika (j == 3) { lanjut; }; // Lewati 3
+    total += j;
 };
 ```
 
@@ -171,6 +180,23 @@ cetak(a atau b);    // benar
 cetak(bukan a);     // salah
 ```
 
+### Sistem Modul (Import)
+
+Kamu bisa memanggil file `.tj` lain dan menggunakan fungsi serta variabelnya dari objek Kamus.
+
+**`matematika.tj`**
+```taji
+misalkan PI = 3.14;
+misalkan tambah = fungsi(a, b) { kembalikan a + b; };
+```
+
+**`utama.tj`**
+```taji
+misalkan mate = masukkan("matematika.tj");
+cetak(mate.PI);
+cetak(mate.tambah(10, 5));
+```
+
 ---
 
 ## 📦 Fungsi Bawaan
@@ -178,6 +204,10 @@ cetak(bukan a);     // salah
 | Fungsi | Deskripsi | Contoh |
 | --- | --- | --- |
 | `cetak(nilai)` | Mencetak nilai ke layar | `cetak("Halo!")` |
+| `tanya(prompt)` | Membaca input dari terminal | `tanya("Siapa namamu? ")` |
+| `waktu()` | Waktu sistem (ms) saat ini | `waktu()` → `1712242191` |
+| `teks(obj)` | Konversi ke Teks | `teks(42)` → `"42"` |
+| `angka(teks)` | Konversi ke Angka | `angka("3.14")` → `3.14` |
 | `panjang(obj)` | Panjang teks atau daftar | `panjang("Taji")` → `4` |
 | `tipe(obj)` | Nama tipe data objek | `tipe(42)` → `"BILANGAN"` |
 | `dorong(arr, val)` | Tambah elemen ke akhir daftar | `dorong([1,2], 3)` → `[1,2,3]` |
@@ -242,12 +272,14 @@ taji/
 cargo test
 ```
 
-Test suite mencakup **43+ test cases** yang menguji:
+Test suite mencakup **73+ test cases** yang menguji:
 - Tokenisasi (lexer)
 - Parsing ekspresi & prioritas operator
-- Evaluasi aritmatika, boolean, string
+- Evaluasi aritmatika (Int & Float), boolean, string
+- Loop kontrol (`untuk`, `selama`, `berhenti`, `lanjut`)
 - Fungsi, closure, dan rekursi
-- Array, hash map, dan indeks
+- Array, hash map, dot access, dan indeks
+- Sistem import (`masukkan`)
 - Error handling
 
 ---

@@ -1,0 +1,23 @@
+cetak("=== CONTOH LOOPING GAYA C ===");
+
+// 1. Loop sederhana
+misalkan total = 0;
+untuk (misalkan i = 1; i <= 10; i += 1) {
+    total += i;
+};
+cetak("Total penjumlahan 1 sampai 10 = " + total);
+
+// 2. Loop dengan Berhenti dan Lanjut
+cetak("");
+cetak("Mencari bilangan ganjil sampai menemukan angka lebih dari 15:");
+untuk (misalkan j = 1; j < 100; j += 1) {
+    jika (j % 2 == 0) {
+        lanjut; // Lewati bilangan genap
+    };
+    
+    jika (j > 15) {
+        berhenti; // Hentikan iterasi
+    };
+    
+    cetak("- Angka " + j);
+};

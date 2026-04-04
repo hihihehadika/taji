@@ -1,0 +1,14 @@
+cetak("Mulai mencoba import file lain...");
+
+// Sistem Modul (memanggil file Modul Matematika)
+misalkan m = masukkan("contoh/modul_matematika.tj");
+
+cetak("");
+cetak("Isi dari modul M:");
+cetak("PI: " + m.PI);
+
+misalkan total = m.tambah(100, 25);
+cetak("Hasil M.tambah(100, 25) = " + total);
+
+misalkan fakto = m.faktorial(5);
+cetak("Hasil M.faktorial(5) = " + fakto);

@@ -1,18 +1,14 @@
 use crate::token::{Token, TokenType};
 
 /// Lexer (Pemindai Leksikal) untuk bahasa Taji.
-///
-/// Membaca kode sumber karakter demi karakter dan menghasilkan
-/// urutan `Token` yang siap dikonsumsi oleh Parser.
 pub struct Lexer {
     input: Vec<char>,
-    position: usize,      // posisi saat ini (menunjuk ke ch)
-    read_position: usize, // posisi baca berikutnya
-    ch: char,             // karakter yang sedang diperiksa
+    position: usize,
+    read_position: usize,
+    ch: char,
 }
 
 impl Lexer {
-    /// Membuat Lexer baru dari string kode sumber.
     pub fn new(input: &str) -> Self {
         let mut l = Lexer {
             input: input.chars().collect(),
@@ -24,7 +20,6 @@ impl Lexer {
         l
     }
 
-    /// Memajukan posisi baca satu karakter ke depan.
     pub fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = '\0';
@@ -35,7 +30,6 @@ impl Lexer {
         self.read_position += 1;
     }
 
-    /// Mengintip karakter berikutnya tanpa memajukan posisi.
     pub fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
             '\0'
@@ -44,10 +38,6 @@ impl Lexer {
         }
     }
 
-    /// Menghasilkan token berikutnya dari kode sumber.
-    ///
-    /// Ini adalah metode utama yang dipanggil oleh Parser secara
-    /// berulang hingga token `Eof` ditemukan.
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
@@ -61,8 +51,22 @@ impl Lexer {
                     Token::new(TokenType::Assign, self.ch.to_string())
                 }
             }
-            '+' => Token::new(TokenType::Plus, self.ch.to_string()),
-            '-' => Token::new(TokenType::Minus, self.ch.to_string()),
+            '+' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::PlusEq, "+=".to_string())
+                } else {
+                    Token::new(TokenType::Plus, self.ch.to_string())
+                }
+            }
+            '-' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::MinusEq, "-=".to_string())
+                } else {
+                    Token::new(TokenType::Minus, self.ch.to_string())
+                }
+            }
             '!' => {
                 if self.peek_char() == '=' {
                     let ch = self.ch;
@@ -72,8 +76,22 @@ impl Lexer {
                     Token::new(TokenType::Bang, self.ch.to_string())
                 }
             }
-            '*' => Token::new(TokenType::Asterisk, self.ch.to_string()),
-            '/' => Token::new(TokenType::Slash, self.ch.to_string()),
+            '*' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::MulEq, "*=".to_string())
+                } else {
+                    Token::new(TokenType::Asterisk, self.ch.to_string())
+                }
+            }
+            '/' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::DivEq, "/=".to_string())
+                } else {
+                    Token::new(TokenType::Slash, self.ch.to_string())
+                }
+            }
             '%' => Token::new(TokenType::Modulo, self.ch.to_string()),
             '<' => {
                 if self.peek_char() == '=' {
@@ -95,6 +113,7 @@ impl Lexer {
             }
             ';' => Token::new(TokenType::Semicolon, self.ch.to_string()),
             ':' => Token::new(TokenType::Colon, self.ch.to_string()),
+            '.' => Token::new(TokenType::Dot, self.ch.to_string()),
             ',' => Token::new(TokenType::Comma, self.ch.to_string()),
             '(' => Token::new(TokenType::Lparen, self.ch.to_string()),
             ')' => Token::new(TokenType::Rparen, self.ch.to_string()),
@@ -113,8 +132,7 @@ impl Lexer {
                     let type_ = Token::lookup_ident(&literal);
                     return Token::new(type_, literal);
                 } else if is_digit(self.ch) {
-                    let literal = self.read_number();
-                    return Token::new(TokenType::Int, literal);
+                    return self.read_number_token();
                 } else {
                     Token::new(TokenType::Illegal, self.ch.to_string())
                 }
@@ -135,17 +153,29 @@ impl Lexer {
         self.input[position..self.position].iter().collect()
     }
 
-    fn read_number(&mut self) -> String {
+    /// Membaca angka (bulat atau desimal) dan mengembalikan token.
+    fn read_number_token(&mut self) -> Token {
         let position = self.position;
         while is_digit(self.ch) {
             self.read_char();
         }
-        self.input[position..self.position].iter().collect()
+
+        // Cek apakah ada titik desimal
+        if self.ch == '.' && is_digit(self.peek_char()) {
+            self.read_char(); // lewati titik
+            while is_digit(self.ch) {
+                self.read_char();
+            }
+            let literal: String = self.input[position..self.position].iter().collect();
+            Token::new(TokenType::Float, literal)
+        } else {
+            let literal: String = self.input[position..self.position].iter().collect();
+            Token::new(TokenType::Int, literal)
+        }
     }
 
-    /// Membaca string literal yang diapit tanda kutip ganda.
     fn read_string(&mut self) -> String {
-        let position = self.position + 1; // lewati kutip pembuka
+        let position = self.position + 1;
         loop {
             self.read_char();
             if self.ch == '"' || self.ch == '\0' {
@@ -153,7 +183,7 @@ impl Lexer {
             }
         }
         let s = self.input[position..self.position].iter().collect();
-        self.read_char(); // lewati kutip penutup
+        self.read_char();
         s
     }
 
@@ -162,7 +192,6 @@ impl Lexer {
             if self.ch.is_whitespace() {
                 self.read_char();
             } else if self.ch == '/' && self.peek_char() == '/' {
-                // Lewati komentar satu baris (// ... sampai akhir baris)
                 while self.ch != '\n' && self.ch != '\0' {
                     self.read_char();
                 }

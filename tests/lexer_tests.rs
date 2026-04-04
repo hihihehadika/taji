@@ -107,7 +107,6 @@ fn test_next_token() {
 
     for (expected_type, expected_literal) in tests {
         let tok = l.next_token();
-
         assert_eq!(tok.type_, expected_type);
         assert_eq!(tok.literal, expected_literal);
     }
@@ -116,10 +115,8 @@ fn test_next_token() {
 #[test]
 fn test_string_token() {
     let input = r#""halo dunia""#;
-
     let mut l = Lexer::new(input);
     let tok = l.next_token();
-
     assert_eq!(tok.type_, TokenType::Str);
     assert_eq!(tok.literal, "halo dunia");
 }
@@ -127,7 +124,6 @@ fn test_string_token() {
 #[test]
 fn test_new_operators() {
     let input = "5 % 3; 10 <= 20; 30 >= 15;";
-
     let mut l = Lexer::new(input);
 
     let tests = vec![
@@ -155,8 +151,7 @@ fn test_new_operators() {
 
 #[test]
 fn test_new_keywords() {
-    let input = "selama dan atau bukan";
-
+    let input = "selama dan atau bukan untuk berhenti lanjut masukkan";
     let mut l = Lexer::new(input);
 
     let tests = vec![
@@ -164,6 +159,10 @@ fn test_new_keywords() {
         (TokenType::Dan, "dan"),
         (TokenType::Atau, "atau"),
         (TokenType::Bukan, "bukan"),
+        (TokenType::Untuk, "untuk"),
+        (TokenType::Berhenti, "berhenti"),
+        (TokenType::Lanjut, "lanjut"),
+        (TokenType::Masukkan, "masukkan"),
         (TokenType::Eof, ""),
     ];
 
@@ -177,7 +176,6 @@ fn test_new_keywords() {
 #[test]
 fn test_brackets_and_colon() {
     let input = "[1, 2]; {\"a\": 1};";
-
     let mut l = Lexer::new(input);
 
     let tests = vec![
@@ -224,6 +222,57 @@ fn test_comments() {
         (TokenType::Ident, "y"),
         (TokenType::Assign, "="),
         (TokenType::Int, "10"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Eof, ""),
+    ];
+
+    for (expected_type, expected_literal) in tests {
+        let tok = l.next_token();
+        assert_eq!(tok.type_, expected_type, "literal: {}", tok.literal);
+        assert_eq!(tok.literal, expected_literal);
+    }
+}
+
+#[test]
+fn test_float_token() {
+    let input = "3.14 0.5 100.0";
+    let mut l = Lexer::new(input);
+
+    let tests = vec![
+        (TokenType::Float, "3.14"),
+        (TokenType::Float, "0.5"),
+        (TokenType::Float, "100.0"),
+        (TokenType::Eof, ""),
+    ];
+
+    for (expected_type, expected_literal) in tests {
+        let tok = l.next_token();
+        assert_eq!(tok.type_, expected_type, "literal: {}", tok.literal);
+        assert_eq!(tok.literal, expected_literal);
+    }
+}
+
+#[test]
+fn test_compound_assignment_tokens() {
+    let input = "x += 3; y -= 1; z *= 2; w /= 4;";
+    let mut l = Lexer::new(input);
+
+    let tests = vec![
+        (TokenType::Ident, "x"),
+        (TokenType::PlusEq, "+="),
+        (TokenType::Int, "3"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Ident, "y"),
+        (TokenType::MinusEq, "-="),
+        (TokenType::Int, "1"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Ident, "z"),
+        (TokenType::MulEq, "*="),
+        (TokenType::Int, "2"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Ident, "w"),
+        (TokenType::DivEq, "/="),
+        (TokenType::Int, "4"),
         (TokenType::Semicolon, ";"),
         (TokenType::Eof, ""),
     ];

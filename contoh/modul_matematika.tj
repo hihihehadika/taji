@@ -1,0 +1,16 @@
+// File ini adalah contoh modul yang bisa dipanggil oleh file lain
+cetak("[Matematika.tj dimuat...]");
+
+misalkan PI = 3.14159;
+
+misalkan tambah = fungsi(a, b) {
+    kembalikan a + b;
+};
+
+misalkan faktorial = fungsi(n) {
+    jika (n <= 1) { kembalikan 1; };
+    kembalikan n * faktorial(n - 1);
+};
+
+// Semua variabel dan fungsi di atas secara otomatis akan 
+// dikembalikan sebagai Kamus saat file ini dipanggil.

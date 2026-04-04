@@ -1,7 +1,4 @@
 /// Modul Object untuk bahasa Taji.
-///
-/// Mendefinisikan semua tipe data yang bisa "hidup" di dalam
-/// memori saat program Taji sedang dieksekusi oleh Evaluator.
 
 use crate::ast::{BlockStatement, Identifier};
 use std::cell::RefCell;
@@ -10,48 +7,29 @@ use std::fmt;
 use std::rc::Rc;
 
 // ═══════════════════════════════════════════════════════════
-//  Object — Representasi nilai di memori
+//  Object
 // ═══════════════════════════════════════════════════════════
 
-/// Semua tipe objek yang dikenali oleh runtime Taji.
 #[derive(Debug, Clone)]
 pub enum Object {
-    /// Angka bulat: `42`, `-7`, `0`
     Integer(i64),
-
-    /// Angka desimal: `3.14` (reserved)
     Float(f64),
-
-    /// Nilai boolean: `benar` / `salah`
     Boolean(bool),
-
-    /// Teks (string): `"halo dunia"`
     Str(String),
-
-    /// Nilai "kosong" / tidak ada
     Null,
-
-    /// Pembungkus nilai kembalian dari fungsi.
     ReturnValue(Box<Object>),
-
-    /// Objek kesalahan runtime.
     Error(String),
-
-    /// Fungsi yang didefinisikan pengguna.
     Function(FunctionObject),
-
-    /// Fungsi bawaan (built-in) sistem.
     Builtin(BuiltinFunction),
-
-    /// Daftar (array): `[1, 2, 3]`
     Array(Vec<Object>),
-
-    /// Kamus (hash map): `{"kunci": "nilai"}`
     Hash(HashMap<HashKey, Object>),
+    /// Signal untuk `berhenti` (break) dalam loop.
+    Break,
+    /// Signal untuk `lanjut` (continue) dalam loop.
+    Continue,
 }
 
 impl Object {
-    /// Mengembalikan nama tipe objek dalam Bahasa Indonesia.
     pub fn type_name(&self) -> &str {
         match self {
             Object::Integer(_) => "BILANGAN",
@@ -65,15 +43,15 @@ impl Object {
             Object::Builtin(_) => "FUNGSI_BAWAAN",
             Object::Array(_) => "DAFTAR",
             Object::Hash(_) => "KAMUS",
+            Object::Break => "BERHENTI",
+            Object::Continue => "LANJUT",
         }
     }
 
-    /// Memeriksa apakah objek ini adalah error.
     pub fn is_error(&self) -> bool {
         matches!(self, Object::Error(_))
     }
 
-    /// Mengonversi objek menjadi HashKey jika memungkinkan.
     pub fn to_hash_key(&self) -> Option<HashKey> {
         match self {
             Object::Integer(val) => Some(HashKey::Integer(*val)),
@@ -88,7 +66,14 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Object::Integer(val) => write!(f, "{}", val),
-            Object::Float(val) => write!(f, "{}", val),
+            Object::Float(val) => {
+                // Tampilkan desimal dengan rapi (hilangkan trailing zeros)
+                if val.fract() == 0.0 {
+                    write!(f, "{:.1}", val)
+                } else {
+                    write!(f, "{}", val)
+                }
+            }
             Object::Boolean(val) => {
                 write!(f, "{}", if *val { "benar" } else { "salah" })
             }
@@ -113,6 +98,8 @@ impl fmt::Display for Object {
                     .collect();
                 write!(f, "{{{}}}", ps.join(", "))
             }
+            Object::Break => write!(f, "berhenti"),
+            Object::Continue => write!(f, "lanjut"),
         }
     }
 }
@@ -121,7 +108,6 @@ impl fmt::Display for Object {
 //  Function Object
 // ═══════════════════════════════════════════════════════════
 
-/// Objek fungsi yang didefinisikan pengguna.
 #[derive(Debug, Clone)]
 pub struct FunctionObject {
     pub parameters: Vec<Identifier>,
@@ -133,14 +119,12 @@ pub struct FunctionObject {
 //  Builtin Function
 // ═══════════════════════════════════════════════════════════
 
-/// Tipe untuk fungsi bawaan sistem.
 pub type BuiltinFunction = fn(Vec<Object>) -> Object;
 
 // ═══════════════════════════════════════════════════════════
-//  Hash Key — Kunci untuk Kamus
+//  Hash Key
 // ═══════════════════════════════════════════════════════════
 
-/// Kunci yang bisa digunakan dalam Kamus (HashMap).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HashKey {
     Integer(i64),
@@ -161,16 +145,9 @@ impl fmt::Display for HashKey {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Environment — Lingkup Variabel (Shared Reference)
+//  Environment
 // ═══════════════════════════════════════════════════════════
 
-/// Lingkup (scope) penyimpanan variabel.
-///
-/// Menggunakan `Rc<RefCell<...>>` agar fungsi yang menangkap
-/// environment (closure) bisa berbagi referensi dengan lingkup
-/// tempat mereka didefinisikan. Ini memungkinkan **rekursi**:
-/// saat fungsi disimpan ke variabel, closure-nya otomatis bisa
-/// melihat variabel tersebut karena berbagi memori yang sama.
 #[derive(Debug, Clone)]
 pub struct Environment {
     store: Rc<RefCell<HashMap<String, Object>>>,
@@ -178,7 +155,6 @@ pub struct Environment {
 }
 
 impl Environment {
-    /// Membuat lingkup baru (global / top-level).
     pub fn new() -> Self {
         Environment {
             store: Rc::new(RefCell::new(HashMap::new())),
@@ -186,8 +162,6 @@ impl Environment {
         }
     }
 
-    /// Membuat lingkup baru yang "mewarisi" lingkup luar.
-    /// Digunakan saat memasuki blok fungsi.
     pub fn new_enclosed(outer: Environment) -> Self {
         Environment {
             store: Rc::new(RefCell::new(HashMap::new())),
@@ -195,8 +169,6 @@ impl Environment {
         }
     }
 
-    /// Mengambil nilai variabel dari lingkup.
-    /// Jika tidak ditemukan, cari di lingkup induk.
     pub fn get(&self, name: &str) -> Option<Object> {
         match self.store.borrow().get(name) {
             Some(obj) => Some(obj.clone()),
@@ -207,10 +179,32 @@ impl Environment {
         }
     }
 
-    /// Menyimpan nilai variabel ke lingkup saat ini.
     pub fn set(&mut self, name: String, val: Object) -> Object {
         self.store.borrow_mut().insert(name, val.clone());
         val
+    }
+
+    /// Update variabel yang sudah ada (cari di scope chain).
+    /// Digunakan untuk assignment (x = 5, x += 3).
+    pub fn update(&mut self, name: &str, val: Object) -> Option<Object> {
+        if self.store.borrow().contains_key(name) {
+            self.store.borrow_mut().insert(name.to_string(), val.clone());
+            return Some(val);
+        }
+        if let Some(outer) = &mut self.outer {
+            return outer.update(name, val);
+        }
+        None
+    }
+
+    /// Mengambil semua variabel dari lingkup saat ini (tanpa outer).
+    /// Digunakan untuk sistem `masukkan` (import).
+    pub fn get_all_local(&self) -> HashMap<HashKey, Object> {
+        let mut result = HashMap::new();
+        for (key, val) in self.store.borrow().iter() {
+            result.insert(HashKey::Str(key.clone()), val.clone());
+        }
+        result
     }
 }
 

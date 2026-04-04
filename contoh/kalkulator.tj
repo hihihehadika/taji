@@ -1,0 +1,16 @@
+// Contoh Penggunaan: tanya(), angka(), dan Float
+cetak("=== Kalkulator Taji Sangat Sederhana ===");
+cetak(" ");
+
+// Meminta input dari terminal
+misalkan baris_satu = tanya("Masukkan angka pertama: ");
+misalkan baris_dua  = tanya("Masukkan angka kedua: ");
+
+// Mengubah Teks menjadi Angka Bulat (bisa juga Float)
+misalkan a = angka(baris_satu);
+misalkan b = angka(baris_dua);
+
+cetak(" ");
+cetak("Hasil dari " + baris_satu + " + " + baris_dua + " = " + (a + b));
+cetak("Hasil dari " + baris_satu + " * " + baris_dua + " = " + (a * b));
+cetak("Hasil dari " + baris_satu + " / " + baris_dua + " = " + (a / b));

@@ -1,19 +1,11 @@
 /// Modul AST (Abstract Syntax Tree) untuk bahasa Taji.
-///
-/// AST adalah representasi terstruktur dari kode sumber setelah
-/// dianalisis oleh Parser. Setiap node dalam pohon mewakili
-/// sebuah konstruksi sintaksis (ekspresi, pernyataan, dsb.).
 
 use std::fmt;
 
 // ═══════════════════════════════════════════════════════════
-//  Program — Akar dari seluruh pohon AST
+//  Program
 // ═══════════════════════════════════════════════════════════
 
-/// Representasi keseluruhan program Taji.
-///
-/// Sebuah program adalah urutan pernyataan (`Statement`) yang
-/// dieksekusi secara berurutan dari atas ke bawah.
 #[derive(Debug, Clone)]
 pub struct Program {
     pub statements: Vec<Statement>,
@@ -29,20 +21,16 @@ impl fmt::Display for Program {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Statements — Pernyataan (tidak menghasilkan nilai)
+//  Statements
 // ═══════════════════════════════════════════════════════════
 
-/// Semua jenis pernyataan yang didukung Taji.
 #[derive(Debug, Clone)]
 pub enum Statement {
-    /// `misalkan x = <ekspresi>;`
     Misalkan(MisalkanStatement),
-
-    /// `kembalikan <ekspresi>;`
     Kembalikan(KembalikanStatement),
-
-    /// Pernyataan ekspresi biasa (misal: `tambah(5, 10);`)
     Ekspresi(EkspresiStatement),
+    Berhenti,
+    Lanjut,
 }
 
 impl fmt::Display for Statement {
@@ -51,11 +39,12 @@ impl fmt::Display for Statement {
             Statement::Misalkan(s) => write!(f, "{}", s),
             Statement::Kembalikan(s) => write!(f, "{}", s),
             Statement::Ekspresi(s) => write!(f, "{}", s),
+            Statement::Berhenti => write!(f, "berhenti;"),
+            Statement::Lanjut => write!(f, "lanjut;"),
         }
     }
 }
 
-/// Pernyataan penetapan variabel: `misalkan <nama> = <nilai>;`
 #[derive(Debug, Clone)]
 pub struct MisalkanStatement {
     pub name: Identifier,
@@ -68,7 +57,6 @@ impl fmt::Display for MisalkanStatement {
     }
 }
 
-/// Pernyataan pengembalian nilai: `kembalikan <ekspresi>;`
 #[derive(Debug, Clone)]
 pub struct KembalikanStatement {
     pub return_value: Expression,
@@ -80,7 +68,6 @@ impl fmt::Display for KembalikanStatement {
     }
 }
 
-/// Pernyataan yang berisi sebuah ekspresi.
 #[derive(Debug, Clone)]
 pub struct EkspresiStatement {
     pub expression: Expression,
@@ -93,53 +80,32 @@ impl fmt::Display for EkspresiStatement {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Expressions — Ekspresi (menghasilkan nilai)
+//  Expressions
 // ═══════════════════════════════════════════════════════════
 
-/// Semua jenis ekspresi yang didukung Taji.
-///
-/// Ekspresi adalah "sesuatu yang menghasilkan nilai",
-/// misalnya `5 + 3`, `benar`, atau `fungsi(x) { x * 2 }`.
 #[derive(Debug, Clone)]
 pub enum Expression {
-    /// Nama variabel atau fungsi: `x`, `tambah`, `harga`
     Identifier(Identifier),
-
-    /// Angka bulat literal: `42`, `1000`
     IntegerLiteral(i64),
-
-    /// Teks literal: `"halo dunia"`
+    FloatLiteral(f64),
     StringLiteral(String),
-
-    /// Nilai boolean: `benar` atau `salah`
     BooleanLiteral(bool),
-
-    /// Ekspresi awalan (prefix): `-5`, `!benar`, `bukan salah`
     Prefix(PrefixExpression),
-
-    /// Ekspresi sisipan (infix): `5 + 3`, `x * y`, `a == b`
     Infix(InfixExpression),
-
-    /// Blok kondisional: `jika (kondisi) { ... } lainnya { ... }`
     Jika(JikaExpression),
-
-    /// Perulangan: `selama (kondisi) { ... }`
     Selama(SelamaExpression),
-
-    /// Definisi fungsi: `fungsi(x, y) { kembalikan x + y; }`
+    Untuk(UntukExpression),
     FungsiLiteral(FungsiLiteral),
-
-    /// Pemanggilan fungsi: `tambah(5, 10)`
     Panggilan(PanggilanExpression),
-
-    /// Daftar literal (array): `[1, 2, 3]`
     ArrayLiteral(Vec<Expression>),
-
-    /// Akses indeks: `daftar[0]`
     IndexExpression(IndexExpression),
-
-    /// Kamus literal (hash map): `{"kunci": "nilai"}`
     HashLiteral(Vec<(Expression, Expression)>),
+    /// Assignment: `x = 5`, `x += 3`
+    Assign(AssignExpression),
+    /// Akses properti: `obj.kunci`
+    DotExpression(DotExpression),
+    /// Import modul: `masukkan("file.tj")`
+    Masukkan(MasukkanExpression),
 }
 
 impl fmt::Display for Expression {
@@ -147,6 +113,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Identifier(id) => write!(f, "{}", id),
             Expression::IntegerLiteral(val) => write!(f, "{}", val),
+            Expression::FloatLiteral(val) => write!(f, "{}", val),
             Expression::StringLiteral(val) => write!(f, "\"{}\"", val),
             Expression::BooleanLiteral(val) => {
                 write!(f, "{}", if *val { "benar" } else { "salah" })
@@ -155,6 +122,7 @@ impl fmt::Display for Expression {
             Expression::Infix(expr) => write!(f, "{}", expr),
             Expression::Jika(expr) => write!(f, "{}", expr),
             Expression::Selama(expr) => write!(f, "{}", expr),
+            Expression::Untuk(expr) => write!(f, "{}", expr),
             Expression::FungsiLiteral(expr) => write!(f, "{}", expr),
             Expression::Panggilan(expr) => write!(f, "{}", expr),
             Expression::ArrayLiteral(elements) => {
@@ -169,15 +137,17 @@ impl fmt::Display for Expression {
                     .collect();
                 write!(f, "{{{}}}", ps.join(", "))
             }
+            Expression::Assign(expr) => write!(f, "{}", expr),
+            Expression::DotExpression(expr) => write!(f, "{}", expr),
+            Expression::Masukkan(expr) => write!(f, "{}", expr),
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Sub-structures — Struktur pendukung ekspresi
+//  Sub-structures
 // ═══════════════════════════════════════════════════════════
 
-/// Identifier (nama variabel/fungsi).
 #[derive(Debug, Clone)]
 pub struct Identifier {
     pub value: String,
@@ -189,7 +159,6 @@ impl fmt::Display for Identifier {
     }
 }
 
-/// Ekspresi awalan: `<operator><operand>` (misal: `-5`, `!benar`)
 #[derive(Debug, Clone)]
 pub struct PrefixExpression {
     pub operator: String,
@@ -202,7 +171,6 @@ impl fmt::Display for PrefixExpression {
     }
 }
 
-/// Ekspresi sisipan: `<kiri> <operator> <kanan>` (misal: `5 + 3`)
 #[derive(Debug, Clone)]
 pub struct InfixExpression {
     pub left: Box<Expression>,
@@ -216,7 +184,6 @@ impl fmt::Display for InfixExpression {
     }
 }
 
-/// Blok kode yang berisi beberapa pernyataan.
 #[derive(Debug, Clone)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
@@ -231,7 +198,6 @@ impl fmt::Display for BlockStatement {
     }
 }
 
-/// Ekspresi kondisional: `jika (kondisi) { ... } lainnya { ... }`
 #[derive(Debug, Clone)]
 pub struct JikaExpression {
     pub condition: Box<Expression>,
@@ -249,7 +215,6 @@ impl fmt::Display for JikaExpression {
     }
 }
 
-/// Perulangan: `selama (kondisi) { ... }`
 #[derive(Debug, Clone)]
 pub struct SelamaExpression {
     pub condition: Box<Expression>,
@@ -262,7 +227,25 @@ impl fmt::Display for SelamaExpression {
     }
 }
 
-/// Definisi fungsi: `fungsi(param1, param2) { ... }`
+/// C-style for loop: `untuk (<init>; <condition>; <update>) { <body> }`
+#[derive(Debug, Clone)]
+pub struct UntukExpression {
+    pub init: Box<Statement>,
+    pub condition: Box<Expression>,
+    pub update: Box<Statement>,
+    pub body: BlockStatement,
+}
+
+impl fmt::Display for UntukExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "untuk ({}; {}; {}) {{ {} }}",
+            self.init, self.condition, self.update, self.body
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FungsiLiteral {
     pub parameters: Vec<Identifier>,
@@ -276,7 +259,6 @@ impl fmt::Display for FungsiLiteral {
     }
 }
 
-/// Pemanggilan fungsi: `<fungsi>(<argumen>)`
 #[derive(Debug, Clone)]
 pub struct PanggilanExpression {
     pub function: Box<Expression>,
@@ -290,7 +272,6 @@ impl fmt::Display for PanggilanExpression {
     }
 }
 
-/// Akses indeks: `<objek>[<indeks>]`
 #[derive(Debug, Clone)]
 pub struct IndexExpression {
     pub left: Box<Expression>,
@@ -300,5 +281,44 @@ pub struct IndexExpression {
 impl fmt::Display for IndexExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}[{}])", self.left, self.index)
+    }
+}
+
+/// Assignment expression: `x = 5` or `x += 3`
+#[derive(Debug, Clone)]
+pub struct AssignExpression {
+    pub name: Identifier,
+    pub operator: String, // "=", "+=", "-=", "*=", "/="
+    pub value: Box<Expression>,
+}
+
+impl fmt::Display for AssignExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {} {}", self.name, self.operator, self.value)
+    }
+}
+
+/// Dot access: `obj.kunci`
+#[derive(Debug, Clone)]
+pub struct DotExpression {
+    pub left: Box<Expression>,
+    pub key: String,
+}
+
+impl fmt::Display for DotExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.left, self.key)
+    }
+}
+
+/// Import: `masukkan("file.tj")`
+#[derive(Debug, Clone)]
+pub struct MasukkanExpression {
+    pub path: Box<Expression>,
+}
+
+impl fmt::Display for MasukkanExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "masukkan({})", self.path)
     }
 }

@@ -1,18 +1,19 @@
 /// Modul Evaluator untuk bahasa Taji.
 ///
-/// Evaluator adalah "otak" yang berjalan menelusuri pohon AST
-/// dan benar-benar mengeksekusi setiap instruksi: menghitung
-/// matematika, mengevaluasi kondisi, menjalankan fungsi, dsb.
-///
-/// Setiap node AST dievaluasi menjadi sebuah `Object` yang
-/// disimpan di dalam `Environment` (lingkup variabel).
+/// Evaluator adalah "otak" yang menelusuri AST dan mengeksekusi
+/// setiap instruksi. Mendukung: aritmatika, kondisi, fungsi,
+/// loop, break/continue, assignment, float, dan import modul.
 
 use crate::ast::*;
+use crate::lexer::Lexer;
 use crate::object::*;
+use crate::parser::Parser;
 use std::collections::HashMap;
+use std::io::{self, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // ═══════════════════════════════════════════════════════════
-//  Konstanta Boolean & Null (optimisasi memori)
+//  Konstanta
 // ═══════════════════════════════════════════════════════════
 
 const TRUE: Object = Object::Boolean(true);
@@ -20,17 +21,15 @@ const FALSE: Object = Object::Boolean(false);
 const NULL: Object = Object::Null;
 
 // ═══════════════════════════════════════════════════════════
-//  Entry point — Evaluasi Program
+//  Entry point
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi seluruh program (urutan pernyataan).
 pub fn eval(program: &Program, env: &mut Environment) -> Object {
     let mut result = NULL;
 
     for stmt in &program.statements {
         result = eval_statement(stmt, env);
 
-        // Jika menemukan `kembalikan` atau error, hentikan segera
         match &result {
             Object::ReturnValue(val) => return *val.clone(),
             Object::Error(_) => return result,
@@ -45,7 +44,6 @@ pub fn eval(program: &Program, env: &mut Environment) -> Object {
 //  Statement evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi satu pernyataan.
 fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
     match stmt {
         Statement::Ekspresi(expr_stmt) => eval_expression(&expr_stmt.expression, env),
@@ -63,19 +61,21 @@ fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
             }
             Object::ReturnValue(Box::new(val))
         }
+        Statement::Berhenti => Object::Break,
+        Statement::Lanjut => Object::Continue,
     }
 }
 
-/// Mengevaluasi blok pernyataan (isi fungsi, if, while).
 fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object {
     let mut result = NULL;
 
     for stmt in &block.statements {
         result = eval_statement(stmt, env);
 
-        // Hentikan jika menemukan return atau error
         match &result {
-            Object::ReturnValue(_) | Object::Error(_) => return result,
+            Object::ReturnValue(_) | Object::Error(_) | Object::Break | Object::Continue => {
+                return result
+            }
             _ => {}
         }
     }
@@ -87,10 +87,10 @@ fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object
 //  Expression evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi sebuah ekspresi menjadi Object.
 fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
     match expr {
         Expression::IntegerLiteral(val) => Object::Integer(*val),
+        Expression::FloatLiteral(val) => Object::Float(*val),
         Expression::BooleanLiteral(val) => native_bool_to_object(*val),
         Expression::StringLiteral(val) => Object::Str(val.clone()),
 
@@ -118,6 +118,7 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
 
         Expression::Jika(jika) => eval_jika_expression(jika, env),
         Expression::Selama(selama) => eval_selama_expression(selama, env),
+        Expression::Untuk(untuk) => eval_untuk_expression(untuk, env),
 
         Expression::FungsiLiteral(fungsi) => Object::Function(FunctionObject {
             parameters: fungsi.parameters.clone(),
@@ -158,10 +159,15 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         }
 
         Expression::HashLiteral(pairs) => eval_hash_literal(pairs, env),
+
+        Expression::Assign(assign) => eval_assign_expression(assign, env),
+
+        Expression::DotExpression(dot) => eval_dot_expression(dot, env),
+
+        Expression::Masukkan(masukkan) => eval_masukkan_expression(masukkan, env),
     }
 }
 
-/// Mengevaluasi daftar ekspresi (argumen fungsi, elemen array).
 fn eval_expressions(exprs: &[Expression], env: &mut Environment) -> Vec<Object> {
     let mut result = vec![];
 
@@ -180,14 +186,11 @@ fn eval_expressions(exprs: &[Expression], env: &mut Environment) -> Vec<Object> 
 //  Identifier resolution
 // ═══════════════════════════════════════════════════════════
 
-/// Mencari nilai identifier di environment atau built-in functions.
 fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
-    // Cari di environment (variabel user)
     if let Some(val) = env.get(&ident.value) {
         return val;
     }
 
-    // Cari di fungsi bawaan (built-in)
     if let Some(builtin) = get_builtin(&ident.value) {
         return builtin;
     }
@@ -202,7 +205,6 @@ fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
 //  Prefix expression evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi ekspresi prefix: `!x`, `-x`, `bukan x`.
 fn eval_prefix_expression(operator: &str, right: Object) -> Object {
     match operator {
         "!" | "bukan" => eval_bang_operator(right),
@@ -215,7 +217,6 @@ fn eval_prefix_expression(operator: &str, right: Object) -> Object {
     }
 }
 
-/// Evaluasi operator `!` / `bukan` (negasi logika).
 fn eval_bang_operator(right: Object) -> Object {
     match right {
         Object::Boolean(true) => FALSE,
@@ -225,7 +226,6 @@ fn eval_bang_operator(right: Object) -> Object {
     }
 }
 
-/// Evaluasi operator `-` prefix (negasi angka).
 fn eval_minus_prefix_operator(right: Object) -> Object {
     match right {
         Object::Integer(val) => Object::Integer(-val),
@@ -241,14 +241,46 @@ fn eval_minus_prefix_operator(right: Object) -> Object {
 //  Infix expression evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi ekspresi infix: `a + b`, `x == y`, dsb.
 fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Object {
     match (&left, &right) {
         (Object::Integer(l), Object::Integer(r)) => {
             eval_integer_infix(operator, *l, *r)
         }
+        (Object::Float(l), Object::Float(r)) => {
+            eval_float_infix(operator, *l, *r)
+        }
+        // Mixed: Int + Float → Float
+        (Object::Integer(l), Object::Float(r)) => {
+            eval_float_infix(operator, *l as f64, *r)
+        }
+        (Object::Float(l), Object::Integer(r)) => {
+            eval_float_infix(operator, *l, *r as f64)
+        }
         (Object::Str(l), Object::Str(r)) => {
             eval_string_infix(operator, l, r)
+        }
+        // String + non-string → convert to string
+        (Object::Str(l), _) => {
+            if operator == "+" {
+                Object::Str(format!("{}{}", l, right))
+            } else {
+                Object::Error(format!(
+                    "operator tidak dikenal: TEKS {} {}",
+                    operator,
+                    right.type_name()
+                ))
+            }
+        }
+        (_, Object::Str(r)) => {
+            if operator == "+" {
+                Object::Str(format!("{}{}", left, r))
+            } else {
+                Object::Error(format!(
+                    "operator tidak dikenal: {} {} TEKS",
+                    left.type_name(),
+                    operator
+                ))
+            }
         }
         (Object::Boolean(l), Object::Boolean(r)) => {
             eval_boolean_infix(operator, *l, *r)
@@ -273,7 +305,6 @@ fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Object 
     }
 }
 
-/// Evaluasi operasi bilangan bulat.
 fn eval_integer_infix(operator: &str, left: i64, right: i64) -> Object {
     match operator {
         "+" => Object::Integer(left + right),
@@ -306,7 +337,38 @@ fn eval_integer_infix(operator: &str, left: i64, right: i64) -> Object {
     }
 }
 
-/// Evaluasi operasi string (concatenation & comparison).
+fn eval_float_infix(operator: &str, left: f64, right: f64) -> Object {
+    match operator {
+        "+" => Object::Float(left + right),
+        "-" => Object::Float(left - right),
+        "*" => Object::Float(left * right),
+        "/" => {
+            if right == 0.0 {
+                Object::Error("pembagian dengan nol tidak diizinkan".to_string())
+            } else {
+                Object::Float(left / right)
+            }
+        }
+        "%" => {
+            if right == 0.0 {
+                Object::Error("modulo dengan nol tidak diizinkan".to_string())
+            } else {
+                Object::Float(left % right)
+            }
+        }
+        "<" => native_bool_to_object(left < right),
+        ">" => native_bool_to_object(left > right),
+        "<=" => native_bool_to_object(left <= right),
+        ">=" => native_bool_to_object(left >= right),
+        "==" => native_bool_to_object(left == right),
+        "!=" => native_bool_to_object(left != right),
+        _ => Object::Error(format!(
+            "operator tidak dikenal: DESIMAL {} DESIMAL",
+            operator
+        )),
+    }
+}
+
 fn eval_string_infix(operator: &str, left: &str, right: &str) -> Object {
     match operator {
         "+" => Object::Str(format!("{}{}", left, right)),
@@ -319,7 +381,6 @@ fn eval_string_infix(operator: &str, left: &str, right: &str) -> Object {
     }
 }
 
-/// Evaluasi operasi boolean.
 fn eval_boolean_infix(operator: &str, left: bool, right: bool) -> Object {
     match operator {
         "==" => native_bool_to_object(left == right),
@@ -334,10 +395,85 @@ fn eval_boolean_infix(operator: &str, left: bool, right: bool) -> Object {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Assignment evaluation
+// ═══════════════════════════════════════════════════════════
+
+fn eval_assign_expression(assign: &AssignExpression, env: &mut Environment) -> Object {
+    let new_val = eval_expression(&assign.value, env);
+    if new_val.is_error() {
+        return new_val;
+    }
+
+    let final_val = if assign.operator == "=" {
+        new_val
+    } else {
+        // Untuk +=, -=, *=, /= kita perlu nilai lama
+        let old_val = match env.get(&assign.name.value) {
+            Some(val) => val,
+            None => {
+                return Object::Error(format!(
+                    "pengenal tidak dikenal: '{}'",
+                    assign.name.value
+                ));
+            }
+        };
+
+        let op = match assign.operator.as_str() {
+            "+=" => "+",
+            "-=" => "-",
+            "*=" => "*",
+            "/=" => "/",
+            _ => {
+                return Object::Error(format!(
+                    "operator assignment tidak dikenal: '{}'",
+                    assign.operator
+                ));
+            }
+        };
+
+        eval_infix_expression(op, old_val, new_val)
+    };
+
+    if final_val.is_error() {
+        return final_val;
+    }
+
+    // Coba update di scope chain dulu, kalau gagal set di scope saat ini
+    match env.update(&assign.name.value, final_val.clone()) {
+        Some(val) => val,
+        None => env.set(assign.name.value.clone(), final_val),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Dot expression evaluation
+// ═══════════════════════════════════════════════════════════
+
+fn eval_dot_expression(dot: &DotExpression, env: &mut Environment) -> Object {
+    let left = eval_expression(&dot.left, env);
+    if left.is_error() {
+        return left;
+    }
+
+    match left {
+        Object::Hash(ref pairs) => {
+            let key = HashKey::Str(dot.key.clone());
+            match pairs.get(&key) {
+                Some(val) => val.clone(),
+                None => NULL,
+            }
+        }
+        _ => Object::Error(format!(
+            "operator '.' tidak didukung untuk: {}",
+            left.type_name()
+        )),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Conditional & Loop evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi `jika (kondisi) { ... } lainnya { ... }`
 fn eval_jika_expression(jika: &JikaExpression, env: &mut Environment) -> Object {
     let condition = eval_expression(&jika.condition, env);
     if condition.is_error() {
@@ -353,7 +489,6 @@ fn eval_jika_expression(jika: &JikaExpression, env: &mut Environment) -> Object 
     }
 }
 
-/// Mengevaluasi `selama (kondisi) { ... }`
 fn eval_selama_expression(selama: &SelamaExpression, env: &mut Environment) -> Object {
     let mut result = NULL;
 
@@ -371,14 +506,68 @@ fn eval_selama_expression(selama: &SelamaExpression, env: &mut Environment) -> O
 
         match &result {
             Object::ReturnValue(_) | Object::Error(_) => return result,
+            Object::Break => break,
+            Object::Continue => continue,
             _ => {}
         }
     }
 
-    result
+    // Jangan kembalikan Break/Continue ke luar loop
+    if matches!(result, Object::Break | Object::Continue) {
+        NULL
+    } else {
+        result
+    }
 }
 
-/// Memeriksa apakah sebuah objek dianggap "benar" (truthy).
+/// Evaluasi C-style for loop:
+/// `untuk (init; condition; update) { body }`
+fn eval_untuk_expression(untuk: &UntukExpression, env: &mut Environment) -> Object {
+    // Jalankan inisialisasi
+    let init_result = eval_statement(&untuk.init, env);
+    if init_result.is_error() {
+        return init_result;
+    }
+
+    let mut result = NULL;
+
+    loop {
+        // Cek kondisi
+        let condition = eval_expression(&untuk.condition, env);
+        if condition.is_error() {
+            return condition;
+        }
+
+        if !is_truthy(&condition) {
+            break;
+        }
+
+        // Jalankan body
+        result = eval_block_statement(&untuk.body, env);
+
+        match &result {
+            Object::ReturnValue(_) | Object::Error(_) => return result,
+            Object::Break => break,
+            Object::Continue => {
+                // Continue: langsung ke update
+            }
+            _ => {}
+        }
+
+        // Jalankan update
+        let update_result = eval_statement(&untuk.update, env);
+        if update_result.is_error() {
+            return update_result;
+        }
+    }
+
+    if matches!(result, Object::Break | Object::Continue) {
+        NULL
+    } else {
+        result
+    }
+}
+
 fn is_truthy(obj: &Object) -> bool {
     match obj {
         Object::Null => false,
@@ -393,11 +582,9 @@ fn is_truthy(obj: &Object) -> bool {
 //  Function application
 // ═══════════════════════════════════════════════════════════
 
-/// Memanggil fungsi (user-defined atau built-in) dengan argumen.
 fn apply_function(func: Object, args: Vec<Object>) -> Object {
     match func {
         Object::Function(f) => {
-            // Validasi jumlah argumen
             if args.len() != f.parameters.len() {
                 return Object::Error(format!(
                     "jumlah argumen salah: diharapkan {}, diterima {}",
@@ -406,18 +593,14 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
                 ));
             }
 
-            // Buat lingkup baru (enclosed) untuk fungsi
             let mut enclosed_env = Environment::new_enclosed(f.env.clone());
 
-            // Ikat argumen ke parameter
             for (param, arg) in f.parameters.iter().zip(args.into_iter()) {
                 enclosed_env.set(param.value.clone(), arg);
             }
 
-            // Evaluasi body fungsi
             let result = eval_block_statement(&f.body, &mut enclosed_env);
 
-            // "Buka" ReturnValue agar tidak bocor ke luar fungsi
             match result {
                 Object::ReturnValue(val) => *val,
                 other => other,
@@ -435,7 +618,6 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
 //  Index & Hash evaluation
 // ═══════════════════════════════════════════════════════════
 
-/// Mengevaluasi akses indeks: `daftar[0]`, `kamus["kunci"]`
 fn eval_index_expression(left: Object, index: Object) -> Object {
     match (&left, &index) {
         (Object::Array(elements), Object::Integer(idx)) => {
@@ -465,7 +647,6 @@ fn eval_index_expression(left: Object, index: Object) -> Object {
     }
 }
 
-/// Mengevaluasi hash literal: `{"kunci": nilai, ...}`
 fn eval_hash_literal(pairs: &[(Expression, Expression)], env: &mut Environment) -> Object {
     let mut hash = HashMap::new();
 
@@ -497,10 +678,64 @@ fn eval_hash_literal(pairs: &[(Expression, Expression)], env: &mut Environment) 
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Masukkan (Import) evaluation
+// ═══════════════════════════════════════════════════════════
+
+fn eval_masukkan_expression(masukkan: &MasukkanExpression, env: &mut Environment) -> Object {
+    let path_obj = eval_expression(&masukkan.path, env);
+    if path_obj.is_error() {
+        return path_obj;
+    }
+
+    let path = match &path_obj {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen untuk 'masukkan' harus TEKS, diterima {}",
+                path_obj.type_name()
+            ));
+        }
+    };
+
+    // Baca file
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            return Object::Error(format!(
+                "gagal membaca file '{}': {}",
+                path, e
+            ));
+        }
+    };
+
+    // Parse file
+    let lexer = Lexer::new(&content);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    if !parser.errors.is_empty() {
+        return Object::Error(format!(
+            "kesalahan parsing di file '{}': {}",
+            path,
+            parser.errors.join(", ")
+        ));
+    }
+
+    // Evaluasi di environment tersendiri
+    let mut module_env = Environment::new();
+    let result = eval(&program, &mut module_env);
+    if result.is_error() {
+        return result;
+    }
+
+    // Kembalikan semua variabel lokal sebagai Kamus
+    Object::Hash(module_env.get_all_local())
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Built-in Functions (Fungsi Bawaan)
 // ═══════════════════════════════════════════════════════════
 
-/// Mengembalikan fungsi bawaan berdasarkan nama.
 fn get_builtin(name: &str) -> Option<Object> {
     match name {
         "cetak" => Some(Object::Builtin(builtin_cetak)),
@@ -510,6 +745,10 @@ fn get_builtin(name: &str) -> Option<Object> {
         "pertama" => Some(Object::Builtin(builtin_pertama)),
         "terakhir" => Some(Object::Builtin(builtin_terakhir)),
         "sisa" => Some(Object::Builtin(builtin_sisa)),
+        "tanya" => Some(Object::Builtin(builtin_tanya)),
+        "waktu" => Some(Object::Builtin(builtin_waktu)),
+        "teks" => Some(Object::Builtin(builtin_teks)),
+        "angka" => Some(Object::Builtin(builtin_angka)),
         _ => None,
     }
 }
@@ -522,7 +761,7 @@ fn builtin_cetak(args: Vec<Object>) -> Object {
     NULL
 }
 
-/// `panjang(objek)` — Mengembalikan panjang teks atau daftar.
+/// `panjang(objek)` — Panjang teks atau daftar.
 fn builtin_panjang(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error(format!(
@@ -541,7 +780,7 @@ fn builtin_panjang(args: Vec<Object>) -> Object {
     }
 }
 
-/// `tipe(objek)` — Mengembalikan nama tipe sebagai teks.
+/// `tipe(objek)` — Nama tipe sebagai teks.
 fn builtin_tipe(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error(format!(
@@ -549,11 +788,10 @@ fn builtin_tipe(args: Vec<Object>) -> Object {
             args.len()
         ));
     }
-
     Object::Str(args[0].type_name().to_string())
 }
 
-/// `dorong(daftar, nilai)` — Menambahkan elemen ke akhir daftar (immutable).
+/// `dorong(daftar, nilai)` — Tambah elemen ke akhir daftar.
 fn builtin_dorong(args: Vec<Object>) -> Object {
     if args.len() != 2 {
         return Object::Error(format!(
@@ -575,7 +813,7 @@ fn builtin_dorong(args: Vec<Object>) -> Object {
     }
 }
 
-/// `pertama(daftar)` — Mengembalikan elemen pertama.
+/// `pertama(daftar)` — Elemen pertama.
 fn builtin_pertama(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error(format!(
@@ -586,11 +824,7 @@ fn builtin_pertama(args: Vec<Object>) -> Object {
 
     match &args[0] {
         Object::Array(arr) => {
-            if arr.is_empty() {
-                NULL
-            } else {
-                arr[0].clone()
-            }
+            if arr.is_empty() { NULL } else { arr[0].clone() }
         }
         _ => Object::Error(format!(
             "argumen untuk 'pertama' harus DAFTAR, diterima {}",
@@ -599,7 +833,7 @@ fn builtin_pertama(args: Vec<Object>) -> Object {
     }
 }
 
-/// `terakhir(daftar)` — Mengembalikan elemen terakhir.
+/// `terakhir(daftar)` — Elemen terakhir.
 fn builtin_terakhir(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error(format!(
@@ -610,11 +844,7 @@ fn builtin_terakhir(args: Vec<Object>) -> Object {
 
     match &args[0] {
         Object::Array(arr) => {
-            if arr.is_empty() {
-                NULL
-            } else {
-                arr[arr.len() - 1].clone()
-            }
+            if arr.is_empty() { NULL } else { arr[arr.len() - 1].clone() }
         }
         _ => Object::Error(format!(
             "argumen untuk 'terakhir' harus DAFTAR, diterima {}",
@@ -623,7 +853,7 @@ fn builtin_terakhir(args: Vec<Object>) -> Object {
     }
 }
 
-/// `sisa(daftar)` — Mengembalikan semua elemen kecuali pertama.
+/// `sisa(daftar)` — Semua elemen kecuali pertama.
 fn builtin_sisa(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error(format!(
@@ -634,14 +864,92 @@ fn builtin_sisa(args: Vec<Object>) -> Object {
 
     match &args[0] {
         Object::Array(arr) => {
-            if arr.is_empty() {
-                NULL
-            } else {
-                Object::Array(arr[1..].to_vec())
-            }
+            if arr.is_empty() { NULL } else { Object::Array(arr[1..].to_vec()) }
         }
         _ => Object::Error(format!(
             "argumen untuk 'sisa' harus DAFTAR, diterima {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// `tanya(prompt)` — Baca input dari terminal.
+fn builtin_tanya(args: Vec<Object>) -> Object {
+    if args.len() > 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'tanya': diharapkan 0 atau 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    // Tampilkan prompt jika ada
+    if !args.is_empty() {
+        print!("{}", args[0]);
+        io::stdout().flush().unwrap_or(());
+    }
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => Object::Str(input.trim_end_matches('\n').trim_end_matches('\r').to_string()),
+        Err(e) => Object::Error(format!("gagal membaca input: {}", e)),
+    }
+}
+
+/// `waktu()` — Timestamp saat ini (dalam milidetik).
+fn builtin_waktu(args: Vec<Object>) -> Object {
+    if !args.is_empty() {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'waktu': diharapkan 0, diterima {}",
+            args.len()
+        ));
+    }
+
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(d) => Object::Integer(d.as_millis() as i64),
+        Err(_) => Object::Error("gagal mendapatkan waktu sistem".to_string()),
+    }
+}
+
+/// `teks(objek)` — Konversi apapun ke teks.
+fn builtin_teks(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'teks': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+    Object::Str(format!("{}", args[0]))
+}
+
+/// `angka(teks)` — Konversi teks ke bilangan bulat.
+fn builtin_angka(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'angka': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    match &args[0] {
+        Object::Str(s) => {
+            // Coba parse sebagai integer dulu
+            if let Ok(val) = s.parse::<i64>() {
+                return Object::Integer(val);
+            }
+            // Lalu coba sebagai float
+            if let Ok(val) = s.parse::<f64>() {
+                return Object::Float(val);
+            }
+            Object::Error(format!(
+                "tidak bisa mengonversi '{}' menjadi angka",
+                s
+            ))
+        }
+        Object::Integer(_) => args[0].clone(),
+        Object::Float(_) => args[0].clone(),
+        Object::Boolean(b) => Object::Integer(if *b { 1 } else { 0 }),
+        _ => Object::Error(format!(
+            "tidak bisa mengonversi {} menjadi angka",
             args[0].type_name()
         )),
     }
@@ -651,7 +959,6 @@ fn builtin_sisa(args: Vec<Object>) -> Object {
 //  Helper
 // ═══════════════════════════════════════════════════════════
 
-/// Mengonversi boolean Rust menjadi Object Boolean.
 fn native_bool_to_object(val: bool) -> Object {
     if val { TRUE } else { FALSE }
 }

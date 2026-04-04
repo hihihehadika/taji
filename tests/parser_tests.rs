@@ -359,6 +359,124 @@ fn test_empty_hash_literal() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Test: Float Literal
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_float_literal_expression() {
+    let input = "3.14;";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+    assert_eq!(format!("{}", program.statements[0]), "3.14");
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Test: Untuk Loop (C-style)
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_untuk_expression() {
+    let input = "untuk (misalkan i = 0; i < 10; i += 1) { cetak(i); };";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Test: Berhenti & Lanjut
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_berhenti_statement() {
+    let input = "berhenti;";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+    assert_eq!(format!("{}", program.statements[0]), "berhenti;");
+}
+
+#[test]
+fn test_lanjut_statement() {
+    let input = "lanjut;";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+    assert_eq!(format!("{}", program.statements[0]), "lanjut;");
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Test: Assignment Expressions
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_assign_expression() {
+    let input = "x = 5;";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+    assert_eq!(format!("{}", program.statements[0]), "x = 5");
+}
+
+#[test]
+fn test_compound_assign_expression() {
+    let tests = vec![
+        ("x += 3;", "x += 3"),
+        ("x -= 1;", "x -= 1"),
+        ("x *= 2;", "x *= 2"),
+        ("x /= 4;", "x /= 4"),
+    ];
+
+    for (input, expected) in tests {
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(format!("{}", program.statements[0]), expected, "input: {}", input);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Test: Dot Expression
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_dot_expression() {
+    let input = "obj.kunci;";
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+    assert_eq!(format!("{}", program.statements[0]), "obj.kunci");
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Test: Masukkan
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_masukkan_expression() {
+    let input = r#"masukkan("file.tj");"#;
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_parser_errors(&p);
+    assert_eq!(program.statements.len(), 1);
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Helper
 // ═══════════════════════════════════════════════════════════
 

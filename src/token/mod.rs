@@ -10,7 +10,7 @@ pub enum TokenType {
     // ── Identifiers + Literals ──────────────────────────
     Ident,    // nama variabel, nama fungsi, dsb.
     Int,      // angka bulat: 0, 42, 1000
-    Float,    // angka desimal: 3.14 (reserved, belum aktif di lexer)
+    Float,    // angka desimal: 3.14
     Str,      // teks literal: "halo dunia"
 
     // ── Operators ───────────────────────────────────────
@@ -21,6 +21,12 @@ pub enum TokenType {
     Asterisk, // *
     Slash,    // /
     Modulo,   // %
+
+    // Compound assignment operators
+    PlusEq,   // +=
+    MinusEq,  // -=
+    MulEq,    // *=
+    DivEq,    // /=
 
     Lt,       // <
     Gt,       // >
@@ -33,6 +39,7 @@ pub enum TokenType {
     Comma,     // ,
     Semicolon, // ;
     Colon,     // :
+    Dot,       // .
 
     Lparen,   // (
     Rparen,   // )
@@ -50,15 +57,16 @@ pub enum TokenType {
     Lainnya,    // else
     Kembalikan, // return
     Selama,     // while
+    Untuk,      // for
+    Berhenti,   // break
+    Lanjut,     // continue
+    Masukkan,   // import
     Dan,        // && (logical and)
     Atau,       // || (logical or)
     Bukan,      // not (logical negation alias)
 }
 
 /// Representasi sebuah token hasil analisis leksikal.
-///
-/// Menyimpan tipe token (`type_`) dan teks asli dari kode
-/// sumber (`literal`) agar bisa digunakan oleh Parser.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub type_: TokenType,
@@ -83,6 +91,10 @@ impl Token {
             "lainnya"    => TokenType::Lainnya,
             "kembalikan" => TokenType::Kembalikan,
             "selama"     => TokenType::Selama,
+            "untuk"      => TokenType::Untuk,
+            "berhenti"   => TokenType::Berhenti,
+            "lanjut"     => TokenType::Lanjut,
+            "masukkan"   => TokenType::Masukkan,
             "dan"        => TokenType::Dan,
             "atau"       => TokenType::Atau,
             "bukan"      => TokenType::Bukan,
