@@ -1,0 +1,126 @@
+// ╔══════════════════════════════════════════════════╗
+// ║  TAJI — Contoh Script: Perkenalan                ║
+// ║  File: contoh/halo.tj                            ║
+// ╚══════════════════════════════════════════════════╝
+
+// === 1. Variabel dan Tipe Data ===
+misalkan nama = "Taji";
+misalkan versi = 1;
+misalkan aktif = benar;
+
+cetak("=== Selamat Datang di Bahasa Taji! ===");
+cetak("Nama bahasa : " + nama);
+cetak("Aktif       : " + "ya");
+
+// === 2. Operasi Matematika ===
+misalkan a = 10;
+misalkan b = 3;
+
+cetak("");
+cetak("=== Operasi Matematika ===");
+cetak(a + b);    // 13
+cetak(a - b);    // 7
+cetak(a * b);    // 30
+cetak(a / b);    // 3
+cetak(a % b);    // 1
+
+// === 3. Fungsi ===
+misalkan luas_persegi = fungsi(sisi) {
+    kembalikan sisi * sisi;
+};
+
+misalkan luas_segitiga = fungsi(alas, tinggi) {
+    kembalikan (alas * tinggi) / 2;
+};
+
+cetak("");
+cetak("=== Fungsi Geometri ===");
+cetak(luas_persegi(5));        // 25
+cetak(luas_segitiga(10, 6));   // 30
+
+// === 4. Kondisional (Jika/Lainnya) ===
+misalkan nilai = 85;
+misalkan grade = jika (nilai >= 90) {
+    "A";
+} lainnya {
+    jika (nilai >= 80) {
+        "B";
+    } lainnya {
+        jika (nilai >= 70) {
+            "C";
+        } lainnya {
+            "D";
+        };
+    };
+};
+
+cetak("");
+cetak("=== Nilai & Grade ===");
+cetak(grade);   // B
+
+// === 5. Perulangan (Selama) ===
+cetak("");
+cetak("=== Hitung Mundur ===");
+misalkan hitungan = 5;
+selama (hitungan > 0) {
+    cetak(hitungan);
+    misalkan hitungan = hitungan - 1;
+};
+cetak("MULAI!");
+
+// === 6. Rekursi — Fibonacci ===
+misalkan fibonacci = fungsi(n) {
+    jika (n < 2) {
+        kembalikan n;
+    };
+    kembalikan fibonacci(n - 1) + fibonacci(n - 2);
+};
+
+cetak("");
+cetak("=== Fibonacci ===");
+cetak(fibonacci(0));   // 0
+cetak(fibonacci(1));   // 1
+cetak(fibonacci(5));   // 5
+cetak(fibonacci(10));  // 55
+
+// === 7. Array (Daftar) ===
+misalkan buah = ["Apel", "Mangga", "Jeruk", "Durian"];
+
+cetak("");
+cetak("=== Daftar Buah ===");
+cetak(buah[0]);               // Apel
+cetak(buah[3]);               // Durian
+cetak(panjang(buah));          // 4
+cetak(pertama(buah));          // Apel
+cetak(terakhir(buah));         // Durian
+
+// === 8. Hash (Kamus) ===
+misalkan profil = {
+    "nama": "Dika",
+    "umur": 20,
+    "bahasa": "Taji"
+};
+
+cetak("");
+cetak("=== Profil ===");
+cetak(profil["nama"]);     // Dika
+cetak(profil["umur"]);     // 20
+cetak(profil["bahasa"]);   // Taji
+
+// === 9. Higher-Order Functions (Closure) ===
+misalkan pembuat_pengali = fungsi(faktor) {
+    fungsi(angka) {
+        angka * faktor;
+    };
+};
+
+misalkan kali_dua = pembuat_pengali(2);
+misalkan kali_tiga = pembuat_pengali(3);
+
+cetak("");
+cetak("=== Closure ===");
+cetak(kali_dua(5));    // 10
+cetak(kali_tiga(5));   // 15
+
+cetak("");
+cetak("=== Selesai! Taji berjalan dengan sempurna. ===");

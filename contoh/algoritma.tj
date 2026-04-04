@@ -1,0 +1,74 @@
+// ╔══════════════════════════════════════════════════╗
+// ║  TAJI — Contoh Script: Algoritma Klasik          ║
+// ║  File: contoh/algoritma.tj                       ║
+// ╚══════════════════════════════════════════════════╝
+
+// === Faktorial dengan Rekursi ===
+misalkan faktorial = fungsi(n) {
+    jika (n <= 1) {
+        kembalikan 1;
+    };
+    kembalikan n * faktorial(n - 1);
+};
+
+cetak("=== Faktorial ===");
+cetak(faktorial(1));    // 1
+cetak(faktorial(5));    // 120
+cetak(faktorial(10));   // 3628800
+
+// === Map: Terapkan fungsi ke setiap elemen ===
+misalkan map = fungsi(arr, f) {
+    jika (panjang(arr) == 0) {
+        kembalikan [];
+    };
+    misalkan kepala = pertama(arr);
+    misalkan ekor = sisa(arr);
+    kembalikan dorong(map(ekor, f), f(kepala));
+};
+
+// Catatan: 'map' di sini mengembalikan array terbalik
+// karena cara kerja 'dorong' yang menambahkan ke akhir.
+
+misalkan kuadrat = fungsi(x) { x * x; };
+misalkan angka = [1, 2, 3, 4, 5];
+
+cetak("");
+cetak("=== Map (kuadrat) ===");
+cetak(map(angka, kuadrat));   // [25, 16, 9, 4, 1]
+
+// === Reduce: Lipat daftar menjadi satu nilai ===
+misalkan reduce = fungsi(arr, awal, f) {
+    jika (panjang(arr) == 0) {
+        kembalikan awal;
+    };
+    misalkan kepala = pertama(arr);
+    misalkan ekor = sisa(arr);
+    kembalikan reduce(ekor, f(awal, kepala), f);
+};
+
+misalkan jumlahkan = fungsi(a, b) { a + b; };
+
+cetak("");
+cetak("=== Reduce (jumlah) ===");
+cetak(reduce(angka, 0, jumlahkan));   // 15
+
+// === FizzBuzz (Versi Indonesia) ===
+cetak("");
+cetak("=== FizzBuzz ===");
+misalkan i = 1;
+selama (i <= 20) {
+    jika (i % 15 == 0) {
+        cetak("FizzBuzz");
+    } lainnya {
+        jika (i % 3 == 0) {
+            cetak("Fizz");
+        } lainnya {
+            jika (i % 5 == 0) {
+                cetak("Buzz");
+            } lainnya {
+                cetak(i);
+            };
+        };
+    };
+    misalkan i = i + 1;
+};
