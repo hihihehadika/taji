@@ -2,7 +2,7 @@
 
 **Bahasa pemrograman modern dengan sintaks Bahasa Indonesia Baku, dibangun sepenuhnya menggunakan Rust.**
 
-Taji (yang berarti *pisau kecil yang tajam*) adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas namun *powerful*—seperti namanya. Proyek ini dibangun dari nol tanpa menggunakan generator parser atau library eksternal.
+Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas namun *powerful*—seperti namanya. Proyek ini dibangun dari nol tanpa menggunakan generator parser atau library eksternal.
 
 ---
 
@@ -257,5 +257,5 @@ Proyek ini dilisensikan di bawah [MIT License](LICENSE).
 ---
 
 <p align="center">
-  Dibuat dengan ❤️ untuk kemajuan teknologi Indonesia.
+  Dibuat oleh Dika.
 </p>
