@@ -1,5 +1,14 @@
 # 🗡️ Taji
 
+<p align="center">
+  <img src="https://img.shields.io/badge/bahasa-Rust-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/versi-0.1.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/lisensi-MIT-green?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/tests-43%2B%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/dependensi-0-purple?style=for-the-badge" alt="Zero Dependencies">
+  <img src="https://img.shields.io/badge/sintaks-Bahasa%20Indonesia-red?style=for-the-badge" alt="Bahasa Indonesia">
+</p>
+
 **Bahasa pemrograman modern dengan sintaks Bahasa Indonesia Baku, dibangun sepenuhnya menggunakan Rust.**
 
 Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas namun *powerful*—seperti namanya. Proyek ini dibangun dari nol tanpa menggunakan generator parser atau library eksternal.
