@@ -34,6 +34,7 @@ pub enum TokenType {
     GtEq,    // >=
     Eq,       // ==
     NotEq,    // !=
+    Arrow,    // =>
 
     // ── Delimiters ──────────────────────────────────────
     Comma,     // ,
@@ -64,6 +65,8 @@ pub enum TokenType {
     Dan,        // && (logical and)
     Atau,       // || (logical or)
     Bukan,      // not (logical negation alias)
+    Coba,       // try
+    Tangkap,    // catch
 }
 
 /// Representasi sebuah token hasil analisis leksikal.
@@ -98,6 +101,8 @@ impl Token {
             "dan"        => TokenType::Dan,
             "atau"       => TokenType::Atau,
             "bukan"      => TokenType::Bukan,
+            "coba"       => TokenType::Coba,
+            "tangkap"    => TokenType::Tangkap,
             _            => TokenType::Ident,
         }
     }

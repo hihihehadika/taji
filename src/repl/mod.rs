@@ -5,18 +5,18 @@
 
 use crate::evaluator;
 use crate::lexer::Lexer;
-use crate::object::{Environment, Object};
+use crate::object::{Lingkungan, Object};
 use crate::parser::Parser;
 use std::io;
 
 const PROMPT: &str = "taji >> ";
 
 const BANNER: &str = r#"
-  ╔══════════════════════════════════════════════════╗
-  ║     🗡️  TAJI — Bahasa Pemrograman Indonesia      ║
-  ║     Versi 0.2.0                                   ║
-  ║     Ketik 'keluar' untuk berhenti.                ║
-  ╚══════════════════════════════════════════════════╝
+  ======================================================
+        TAJI - Bahasa Pemrograman Indonesia         
+        Versi 0.3.0                                   
+        Ketik 'keluar' untuk berhenti.                
+  ======================================================
 "#;
 
 /// Memulai sesi REPL interaktif.
@@ -29,7 +29,7 @@ where
     W: io::Write,
 {
     let _ = writeln!(output, "{}", BANNER);
-    let mut env = Environment::new();
+    let mut env = Lingkungan::new();
 
     loop {
         let _ = write!(output, "{}", PROMPT);

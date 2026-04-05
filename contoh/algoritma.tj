@@ -30,11 +30,11 @@ misalkan map = fungsi(arr, f) {
 // karena cara kerja 'dorong' yang menambahkan ke akhir.
 
 misalkan kuadrat = fungsi(x) { x * x; };
-misalkan angka = [1, 2, 3, 4, 5];
+misalkan daftar_angka = [1, 2, 3, 4, 5];
 
 cetak("");
 cetak("=== Map (kuadrat) ===");
-cetak(map(angka, kuadrat));   // [25, 16, 9, 4, 1]
+cetak(map(daftar_angka, kuadrat));   // [25, 16, 9, 4, 1]
 
 // === Reduce: Lipat daftar menjadi satu nilai ===
 misalkan reduce = fungsi(arr, awal, f) {
@@ -50,13 +50,12 @@ misalkan jumlahkan = fungsi(a, b) { a + b; };
 
 cetak("");
 cetak("=== Reduce (jumlah) ===");
-cetak(reduce(angka, 0, jumlahkan));   // 15
+cetak(reduce(daftar_angka, 0, jumlahkan));   // 15
 
 // === FizzBuzz (Versi Indonesia) ===
 cetak("");
 cetak("=== FizzBuzz ===");
-misalkan i = 1;
-selama (i <= 20) {
+untuk (misalkan i = 1; i <= 20; i += 1) {
     jika (i % 15 == 0) {
         cetak("FizzBuzz");
     } lainnya {
@@ -70,5 +69,4 @@ selama (i <= 20) {
             };
         };
     };
-    misalkan i = i + 1;
 };

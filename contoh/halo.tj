@@ -64,7 +64,7 @@ cetak("=== Hitung Mundur ===");
 misalkan hitungan = 5;
 selama (hitungan > 0) {
     cetak(hitungan);
-    misalkan hitungan = hitungan - 1;
+    hitungan -= 1;
 };
 cetak("MULAI!");
 

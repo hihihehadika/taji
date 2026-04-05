@@ -11,7 +11,7 @@ use std::process;
 
 use taji::evaluator;
 use taji::lexer::Lexer;
-use taji::object::Environment;
+use taji::object::Lingkungan;
 use taji::parser::Parser;
 use taji::repl;
 
@@ -67,7 +67,7 @@ fn run_file(filename: &str) {
     }
 
     // Evaluasi
-    let mut env = Environment::new();
+    let mut env = Lingkungan::new();
     let result = evaluator::eval(&program, &mut env);
 
     // Tampilkan error jika ada

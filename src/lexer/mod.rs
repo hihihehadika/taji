@@ -1,6 +1,11 @@
+/// Lexer (Pemindai Leksikal) untuk bahasa Taji.
+///
+/// Memecah kode sumber menjadi deretan token yang akan
+/// diproses oleh Parser.
+
 use crate::token::{Token, TokenType};
 
-/// Lexer (Pemindai Leksikal) untuk bahasa Taji.
+#[derive(Clone)]
 pub struct Lexer {
     input: Vec<char>,
     position: usize,
@@ -20,6 +25,7 @@ impl Lexer {
         l
     }
 
+    /// Membaca karakter berikutnya dan memajukan posisi.
     pub fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = '\0';
@@ -30,6 +36,7 @@ impl Lexer {
         self.read_position += 1;
     }
 
+    /// Mengintip karakter berikutnya tanpa memajukan posisi.
     pub fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
             '\0'
@@ -38,17 +45,20 @@ impl Lexer {
         }
     }
 
+    /// Menghasilkan token berikutnya dari input.
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let tok = match self.ch {
             '=' => {
                 if self.peek_char() == '=' {
-                    let ch = self.ch;
                     self.read_char();
-                    Token::new(TokenType::Eq, format!("{}{}", ch, self.ch))
+                    Token::new(TokenType::Eq, "==".to_string())
+                } else if self.peek_char() == '>' {
+                    self.read_char();
+                    Token::new(TokenType::Arrow, "=>".to_string())
                 } else {
-                    Token::new(TokenType::Assign, self.ch.to_string())
+                    Token::new(TokenType::Assign, "=".to_string())
                 }
             }
             '+' => {
@@ -56,7 +66,7 @@ impl Lexer {
                     self.read_char();
                     Token::new(TokenType::PlusEq, "+=".to_string())
                 } else {
-                    Token::new(TokenType::Plus, self.ch.to_string())
+                    Token::new(TokenType::Plus, "+".to_string())
                 }
             }
             '-' => {
@@ -64,16 +74,15 @@ impl Lexer {
                     self.read_char();
                     Token::new(TokenType::MinusEq, "-=".to_string())
                 } else {
-                    Token::new(TokenType::Minus, self.ch.to_string())
+                    Token::new(TokenType::Minus, "-".to_string())
                 }
             }
             '!' => {
                 if self.peek_char() == '=' {
-                    let ch = self.ch;
                     self.read_char();
-                    Token::new(TokenType::NotEq, format!("{}{}", ch, self.ch))
+                    Token::new(TokenType::NotEq, "!=".to_string())
                 } else {
-                    Token::new(TokenType::Bang, self.ch.to_string())
+                    Token::new(TokenType::Bang, "!".to_string())
                 }
             }
             '*' => {
@@ -81,7 +90,7 @@ impl Lexer {
                     self.read_char();
                     Token::new(TokenType::MulEq, "*=".to_string())
                 } else {
-                    Token::new(TokenType::Asterisk, self.ch.to_string())
+                    Token::new(TokenType::Asterisk, "*".to_string())
                 }
             }
             '/' => {
@@ -89,38 +98,36 @@ impl Lexer {
                     self.read_char();
                     Token::new(TokenType::DivEq, "/=".to_string())
                 } else {
-                    Token::new(TokenType::Slash, self.ch.to_string())
+                    Token::new(TokenType::Slash, "/".to_string())
                 }
             }
-            '%' => Token::new(TokenType::Modulo, self.ch.to_string()),
+            '%' => Token::new(TokenType::Modulo, "%".to_string()),
             '<' => {
                 if self.peek_char() == '=' {
-                    let ch = self.ch;
                     self.read_char();
-                    Token::new(TokenType::LtEq, format!("{}{}", ch, self.ch))
+                    Token::new(TokenType::LtEq, "<=".to_string())
                 } else {
-                    Token::new(TokenType::Lt, self.ch.to_string())
+                    Token::new(TokenType::Lt, "<".to_string())
                 }
             }
             '>' => {
                 if self.peek_char() == '=' {
-                    let ch = self.ch;
                     self.read_char();
-                    Token::new(TokenType::GtEq, format!("{}{}", ch, self.ch))
+                    Token::new(TokenType::GtEq, ">=".to_string())
                 } else {
-                    Token::new(TokenType::Gt, self.ch.to_string())
+                    Token::new(TokenType::Gt, ">".to_string())
                 }
             }
-            ';' => Token::new(TokenType::Semicolon, self.ch.to_string()),
-            ':' => Token::new(TokenType::Colon, self.ch.to_string()),
-            '.' => Token::new(TokenType::Dot, self.ch.to_string()),
-            ',' => Token::new(TokenType::Comma, self.ch.to_string()),
-            '(' => Token::new(TokenType::Lparen, self.ch.to_string()),
-            ')' => Token::new(TokenType::Rparen, self.ch.to_string()),
-            '{' => Token::new(TokenType::Lbrace, self.ch.to_string()),
-            '}' => Token::new(TokenType::Rbrace, self.ch.to_string()),
-            '[' => Token::new(TokenType::Lbracket, self.ch.to_string()),
-            ']' => Token::new(TokenType::Rbracket, self.ch.to_string()),
+            ';' => Token::new(TokenType::Semicolon, ";".to_string()),
+            ':' => Token::new(TokenType::Colon, ":".to_string()),
+            '.' => Token::new(TokenType::Dot, ".".to_string()),
+            ',' => Token::new(TokenType::Comma, ",".to_string()),
+            '(' => Token::new(TokenType::Lparen, "(".to_string()),
+            ')' => Token::new(TokenType::Rparen, ")".to_string()),
+            '{' => Token::new(TokenType::Lbrace, "{".to_string()),
+            '}' => Token::new(TokenType::Rbrace, "}".to_string()),
+            '[' => Token::new(TokenType::Lbracket, "[".to_string()),
+            ']' => Token::new(TokenType::Rbracket, "]".to_string()),
             '"' => {
                 let literal = self.read_string();
                 return Token::new(TokenType::Str, literal);
@@ -143,8 +150,9 @@ impl Lexer {
         tok
     }
 
-    // ── Private helpers ─────────────────────────────────
+    // ── Fungsi pembantu internal ─────────────────────────
 
+    /// Membaca pengenal (identifier) sampai bertemu karakter non-huruf/angka.
     fn read_identifier(&mut self) -> String {
         let position = self.position;
         while is_letter(self.ch) || is_digit(self.ch) {
@@ -174,6 +182,7 @@ impl Lexer {
         }
     }
 
+    /// Membaca teks literal di antara tanda kutip ganda.
     fn read_string(&mut self) -> String {
         let position = self.position + 1;
         loop {
@@ -187,11 +196,13 @@ impl Lexer {
         s
     }
 
+    /// Melewati spasi, tab, newline, dan komentar satu baris (`//`).
     fn skip_whitespace(&mut self) {
         loop {
             if self.ch.is_whitespace() {
                 self.read_char();
             } else if self.ch == '/' && self.peek_char() == '/' {
+                // Lewati komentar satu baris sampai akhir baris
                 while self.ch != '\n' && self.ch != '\0' {
                     self.read_char();
                 }
@@ -202,10 +213,12 @@ impl Lexer {
     }
 }
 
+/// Cek apakah karakter adalah huruf atau garis bawah.
 fn is_letter(ch: char) -> bool {
     ch.is_alphabetic() || ch == '_'
 }
 
+/// Cek apakah karakter adalah digit angka.
 fn is_digit(ch: char) -> bool {
     ch.is_ascii_digit()
 }

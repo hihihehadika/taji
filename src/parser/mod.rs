@@ -1,13 +1,14 @@
 /// Modul Parser untuk bahasa Taji.
 ///
-/// Menggunakan algoritma **Pratt Parser** (Top-Down Operator Precedence).
+/// Menggunakan algoritma **Pratt Parser** (Top-Down Operator Precedence)
+/// untuk mengubah deretan token menjadi pohon sintaks (AST).
 
 use crate::ast::*;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
 // ═══════════════════════════════════════════════════════════
-//  Precedence
+//  Prioritas Operator (Precedence)
 // ═══════════════════════════════════════════════════════════
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
@@ -23,9 +24,10 @@ pub enum Precedence {
     Prefix,      // -x !x bukan x
     Call,        // fungsi(x)
     Index,       // daftar[0]
-    Dot,         // obj.key
+    Dot,         // obj.kunci
 }
 
+/// Menentukan prioritas operator berdasarkan tipe token.
 fn token_precedence(token_type: &TokenType) -> Precedence {
     match token_type {
         TokenType::Assign
@@ -72,9 +74,28 @@ impl Parser {
         }
     }
 
+    /// Memajukan ke token berikutnya.
     fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
+    }
+
+    /// Menyimpan snapshot keadaan parser saat ini untuk backtracking.
+    fn lexer_snapshot(&self) -> (Lexer, Token, Token, Vec<String>) {
+        (
+            self.lexer.clone(),
+            self.cur_token.clone(),
+            self.peek_token.clone(),
+            self.errors.clone(),
+        )
+    }
+
+    /// Mengembalikan parser ke keadaan snapshot sebelumnya.
+    fn restore_snapshot(&mut self, snapshot: (Lexer, Token, Token, Vec<String>)) {
+        self.lexer = snapshot.0;
+        self.cur_token = snapshot.1;
+        self.peek_token = snapshot.2;
+        self.errors = snapshot.3;
     }
 
     fn cur_token_is(&self, t: &TokenType) -> bool {
@@ -93,6 +114,7 @@ impl Parser {
         token_precedence(&self.cur_token.type_)
     }
 
+    /// Memeriksa apakah token berikutnya sesuai harapan, lalu maju.
     fn expect_peek(&mut self, t: &TokenType) -> bool {
         if self.peek_token_is(t) {
             self.next_token();
@@ -113,14 +135,14 @@ impl Parser {
 
     fn no_prefix_parse_error(&mut self, t: &TokenType) {
         let msg = format!(
-            "Kesalahan: tidak ada aturan parsing prefix untuk {:?}",
+            "Kesalahan: tidak ada aturan parsing awalan untuk {:?}",
             t
         );
         self.errors.push(msg);
     }
 
     // ═══════════════════════════════════════════════════════
-    //  Entry point
+    //  Titik masuk
     // ═══════════════════════════════════════════════════════
 
     pub fn parse_program(&mut self) -> Program {
@@ -139,7 +161,7 @@ impl Parser {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  Statement parsing
+    //  Parsing pernyataan
     // ═══════════════════════════════════════════════════════
 
     fn parse_statement(&mut self) -> Option<Statement> {
@@ -167,7 +189,7 @@ impl Parser {
             return None;
         }
 
-        let name = Identifier {
+        let name = Pengenal {
             value: self.cur_token.literal.clone(),
         };
 
@@ -211,7 +233,7 @@ impl Parser {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  Expression parsing (Pratt Parser core)
+    //  Parsing ekspresi (inti Pratt Parser)
     // ═══════════════════════════════════════════════════════
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
@@ -231,6 +253,7 @@ impl Parser {
         Some(left)
     }
 
+    /// Memeriksa apakah tipe token memiliki aturan parsing sisipan.
     fn has_infix_rule(&self, t: &TokenType) -> bool {
         matches!(
             t,
@@ -258,7 +281,7 @@ impl Parser {
         )
     }
 
-    // ── Prefix parsing ─────────────────────────────────
+    // ── Parsing awalan (prefix) ─────────────────────────
 
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.cur_token.type_ {
@@ -278,6 +301,7 @@ impl Parser {
             TokenType::Lbracket => self.parse_array_literal(),
             TokenType::Lbrace => self.parse_hash_literal(),
             TokenType::Masukkan => self.parse_masukkan_expression(),
+            TokenType::Coba => self.parse_coba_expression(),
             _ => {
                 self.no_prefix_parse_error(&self.cur_token.type_.clone());
                 None
@@ -286,7 +310,7 @@ impl Parser {
     }
 
     fn parse_identifier(&self) -> Expression {
-        Expression::Identifier(Identifier {
+        Expression::Pengenal(Pengenal {
             value: self.cur_token.literal.clone(),
         })
     }
@@ -332,13 +356,51 @@ impl Parser {
         self.next_token();
         let right = self.parse_expression(Precedence::Prefix)?;
 
-        Some(Expression::Prefix(PrefixExpression {
+        Some(Expression::Awalan(AwalanExpression {
             operator,
             right: Box::new(right),
         }))
     }
 
+    /// Parsing `(...)` — bisa jadi ekspresi grup ATAU fungsi panah.
+    ///
+    /// Strategi: setelah membuka `(`, jika isi nya berupa daftar
+    /// pengenal (identifiers) dan diikuti `)` lalu `=>`, maka ini
+    /// adalah fungsi panah. Jika tidak, ini ekspresi grup biasa.
     fn parse_grouped_expression(&mut self) -> Option<Expression> {
+        // Kasus khusus: `() => ...` (tanpa parameter)
+        if self.peek_token_is(&TokenType::Rparen) {
+            self.next_token(); // konsumsi `)`
+            if self.peek_token_is(&TokenType::Arrow) {
+                self.next_token(); // konsumsi `=>`
+                return self.parse_fungsi_panah_badan(vec![]);
+            }
+            // `()` tanpa `=>` → error, kurung kosong bukan ekspresi valid
+            self.errors.push("Kesalahan: ekspresi kosong di dalam kurung".to_string());
+            return None;
+        }
+
+        // Coba deteksi apakah ini daftar parameter untuk fungsi panah.
+        // Jika token pertama setelah `(` adalah Ident, dan diikuti oleh
+        // `,` atau `)`, ada kemungkinan ini fungsi panah.
+        if self.peek_token_is(&TokenType::Ident) {
+            // Simpan posisi untuk backtrack jika ternyata bukan arrow
+            let saved_pos = self.lexer_snapshot();
+
+            // Coba parse sebagai daftar parameter
+            if let Some(params) = self.try_parse_arrow_params() {
+                // Berhasil parse params, cek apakah diikuti `=>`
+                if self.peek_token_is(&TokenType::Arrow) {
+                    self.next_token(); // konsumsi `=>`
+                    return self.parse_fungsi_panah_badan(params);
+                }
+            }
+
+            // Bukan arrow function — restore posisi dan parse sebagai grouped expression
+            self.restore_snapshot(saved_pos);
+        }
+
+        // Parse sebagai ekspresi grup biasa: `(ekspresi)`
         self.next_token();
         let expr = self.parse_expression(Precedence::Lowest)?;
 
@@ -349,19 +411,127 @@ impl Parser {
         Some(expr)
     }
 
-    // ── Infix parsing ──────────────────────────────────
+    /// Mencoba parsing daftar parameter arrow function: `(x)`, `(x, y, z)`
+    /// Mengembalikan None jika format tidak cocok (bukan daftar identifier).
+    fn try_parse_arrow_params(&mut self) -> Option<Vec<Pengenal>> {
+        let mut params: Vec<Pengenal> = vec![];
+
+        self.next_token(); // lewati `(`  → sekarang di Ident pertama
+        if !self.cur_token_is(&TokenType::Ident) {
+            return None;
+        }
+
+        params.push(Pengenal {
+            value: self.cur_token.literal.clone(),
+        });
+
+        while self.peek_token_is(&TokenType::Comma) {
+            self.next_token(); // konsumsi `,`
+            self.next_token(); // maju ke Ident berikutnya
+            if !self.cur_token_is(&TokenType::Ident) {
+                return None;
+            }
+            params.push(Pengenal {
+                value: self.cur_token.literal.clone(),
+            });
+        }
+
+        if !self.peek_token_is(&TokenType::Rparen) {
+            return None;
+        }
+        self.next_token(); // konsumsi `)`
+
+        Some(params)
+    }
+
+    /// Parsing badan fungsi panah setelah `=>`.
+    ///
+    /// Mendukung dua bentuk:
+    /// - `(x) => { ... }` → blok pernyataan eksplisit
+    /// - `(x) => ekspresi` → pengembalian implisit (badan satu ekspresi)
+    fn parse_fungsi_panah_badan(&mut self, params: Vec<Pengenal>) -> Option<Expression> {
+        self.next_token(); // maju ke token setelah `=>`
+
+        let body = if self.cur_token_is(&TokenType::Lbrace) {
+            // Bentuk blok eksplisit: `(x) => { ... }`
+            self.parse_blok_pernyataan()
+        } else {
+            // Bentuk ekspresi tunggal: `(x) => x * 2`
+            // Bungkus sebagai satu pernyataan ekspresi di dalam blok
+            let expr = self.parse_expression(Precedence::Lowest)?;
+            BlokPernyataan {
+                statements: vec![Statement::Ekspresi(EkspresiStatement {
+                    expression: expr,
+                })],
+            }
+        };
+
+        Some(Expression::FungsiPanah(FungsiPanahLiteral {
+            parameters: params,
+            body,
+        }))
+    }
+
+    /// Parsing `coba { ... } tangkap (err) { ... }`
+    fn parse_coba_expression(&mut self) -> Option<Expression> {
+        // Harapkan blok `{` setelah `coba`
+        if !self.expect_peek(&TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_blok_pernyataan();
+
+        // Harapkan keyword `tangkap`
+        if !self.expect_peek(&TokenType::Tangkap) {
+            return None;
+        }
+
+        // Harapkan `(` setelah `tangkap`
+        if !self.expect_peek(&TokenType::Lparen) {
+            return None;
+        }
+
+        // Harapkan nama variabel error
+        if !self.expect_peek(&TokenType::Ident) {
+            return None;
+        }
+
+        let error_ident = Pengenal {
+            value: self.cur_token.literal.clone(),
+        };
+
+        // Harapkan `)`
+        if !self.expect_peek(&TokenType::Rparen) {
+            return None;
+        }
+
+        // Harapkan blok handler `{`
+        if !self.expect_peek(&TokenType::Lbrace) {
+            return None;
+        }
+
+        let handler = self.parse_blok_pernyataan();
+
+        Some(Expression::Coba(CobaExpression {
+            body,
+            error_ident,
+            handler,
+        }))
+    }
+
+    // ── Parsing sisipan (infix) ─────────────────────────
 
     fn parse_infix(&mut self, left: Expression) -> Option<Expression> {
         match self.cur_token.type_ {
             TokenType::Lparen => self.parse_panggilan_expression(left),
-            TokenType::Lbracket => self.parse_index_expression(left),
-            TokenType::Dot => self.parse_dot_expression(left),
-            // Assignment operators: = += -= *= /=
+            TokenType::Lbracket => self.parse_indeks_expression(left),
+            TokenType::Dot => self.parse_titik_expression(left),
+            // Operator penugasan: = += -= *= /=
             TokenType::Assign
             | TokenType::PlusEq
             | TokenType::MinusEq
             | TokenType::MulEq
-            | TokenType::DivEq => self.parse_assign_expression(left),
+            | TokenType::DivEq => self.parse_penugasan_expression(left),
             _ => self.parse_infix_expression(left),
         }
     }
@@ -374,23 +544,23 @@ impl Parser {
 
         let right = self.parse_expression(precedence)?;
 
-        Some(Expression::Infix(InfixExpression {
+        Some(Expression::Sisipan(SisipanExpression {
             left: Box::new(left),
             operator,
             right: Box::new(right),
         }))
     }
 
-    /// Parse assignment: `x = 5`, `x += 3`, `x -= 1`
-    fn parse_assign_expression(&mut self, left: Expression) -> Option<Expression> {
+    /// Parsing penugasan: `x = 5`, `x += 3`, `x -= 1`
+    fn parse_penugasan_expression(&mut self, left: Expression) -> Option<Expression> {
         let operator = self.cur_token.literal.clone();
 
-        // Left side must be an identifier
+        // Sisi kiri harus berupa pengenal (nama variabel)
         let name = match left {
-            Expression::Identifier(ident) => ident,
+            Expression::Pengenal(ident) => ident,
             _ => {
                 self.errors.push(
-                    "Kesalahan: sisi kiri assignment harus berupa nama variabel".to_string(),
+                    "Kesalahan: sisi kiri penugasan harus berupa nama variabel".to_string(),
                 );
                 return None;
             }
@@ -399,28 +569,28 @@ impl Parser {
         self.next_token();
         let value = self.parse_expression(Precedence::Lowest)?;
 
-        Some(Expression::Assign(AssignExpression {
+        Some(Expression::Penugasan(PenugasanExpression {
             name,
             operator,
             value: Box::new(value),
         }))
     }
 
-    /// Parse dot access: `obj.kunci`
-    fn parse_dot_expression(&mut self, left: Expression) -> Option<Expression> {
+    /// Parsing akses titik: `obj.kunci`
+    fn parse_titik_expression(&mut self, left: Expression) -> Option<Expression> {
         if !self.expect_peek(&TokenType::Ident) {
             return None;
         }
 
         let key = self.cur_token.literal.clone();
 
-        Some(Expression::DotExpression(DotExpression {
+        Some(Expression::Titik(TitikExpression {
             left: Box::new(left),
             key,
         }))
     }
 
-    // ── Complex expression parsing ─────────────────────
+    // ── Parsing ekspresi kompleks ───────────────────────
 
     fn parse_jika_expression(&mut self) -> Option<Expression> {
         if !self.expect_peek(&TokenType::Lparen) {
@@ -438,7 +608,7 @@ impl Parser {
             return None;
         }
 
-        let consequence = self.parse_block_statement();
+        let consequence = self.parse_blok_pernyataan();
 
         let alternative = if self.peek_token_is(&TokenType::Lainnya) {
             self.next_token();
@@ -447,7 +617,7 @@ impl Parser {
                 return None;
             }
 
-            Some(self.parse_block_statement())
+            Some(self.parse_blok_pernyataan())
         } else {
             None
         };
@@ -475,7 +645,7 @@ impl Parser {
             return None;
         }
 
-        let body = self.parse_block_statement();
+        let body = self.parse_blok_pernyataan();
 
         Some(Expression::Selama(SelamaExpression {
             condition: Box::new(condition),
@@ -483,36 +653,33 @@ impl Parser {
         }))
     }
 
-    /// Parse C-style for loop:
-    /// `untuk (<init>; <condition>; <update>) { <body> }`
+    /// Parsing perulangan untuk (gaya C):
+    /// `untuk (<init>; <kondisi>; <pembaruan>) { <badan> }`
     fn parse_untuk_expression(&mut self) -> Option<Expression> {
         if !self.expect_peek(&TokenType::Lparen) {
             return None;
         }
 
-        // Parse init statement
+        // Parsing pernyataan inisialisasi
         self.next_token();
         let init = self.parse_statement()?;
 
-        // After init, we should be at semicolon or just past it
-        // The parse_statement already consumes the semicolon if present
-        // Now we parse the condition
+        // Setelah init, parse_statement sudah mengonsumsi titik koma
+        // Sekarang parsing kondisi
         self.next_token();
         let condition = self.parse_expression(Precedence::Lowest)?;
 
-        // Expect semicolon after condition
+        // Harapkan titik koma setelah kondisi
         if !self.expect_peek(&TokenType::Semicolon) {
             return None;
         }
 
-        // Parse update statement
+        // Parsing pernyataan pembaruan
         self.next_token();
         let update = self.parse_statement()?;
 
-        // After update, we need Rparen
-        // If the statement already consumed something, check for rparen
+        // Setelah pembaruan, butuh kurung tutup
         if !self.expect_peek(&TokenType::Rparen) {
-            // Maybe update didn't have semicolon and we're at rparen already
             if !self.cur_token_is(&TokenType::Rparen) {
                 return None;
             }
@@ -522,7 +689,7 @@ impl Parser {
             return None;
         }
 
-        let body = self.parse_block_statement();
+        let body = self.parse_blok_pernyataan();
 
         Some(Expression::Untuk(UntukExpression {
             init: Box::new(init),
@@ -532,7 +699,8 @@ impl Parser {
         }))
     }
 
-    fn parse_block_statement(&mut self) -> BlockStatement {
+    /// Parsing blok pernyataan: `{ ... }`
+    fn parse_blok_pernyataan(&mut self) -> BlokPernyataan {
         self.next_token();
 
         let mut statements = vec![];
@@ -544,7 +712,7 @@ impl Parser {
             self.next_token();
         }
 
-        BlockStatement { statements }
+        BlokPernyataan { statements }
     }
 
     fn parse_fungsi_literal(&mut self) -> Option<Expression> {
@@ -552,13 +720,13 @@ impl Parser {
             return None;
         }
 
-        let parameters = self.parse_function_parameters()?;
+        let parameters = self.parse_parameter_fungsi()?;
 
         if !self.expect_peek(&TokenType::Lbrace) {
             return None;
         }
 
-        let body = self.parse_block_statement();
+        let body = self.parse_blok_pernyataan();
 
         Some(Expression::FungsiLiteral(FungsiLiteral {
             parameters,
@@ -566,7 +734,8 @@ impl Parser {
         }))
     }
 
-    fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
+    /// Parsing daftar parameter fungsi: `(x, y, z)`
+    fn parse_parameter_fungsi(&mut self) -> Option<Vec<Pengenal>> {
         let mut identifiers = vec![];
 
         if self.peek_token_is(&TokenType::Rparen) {
@@ -576,7 +745,7 @@ impl Parser {
 
         self.next_token();
 
-        identifiers.push(Identifier {
+        identifiers.push(Pengenal {
             value: self.cur_token.literal.clone(),
         });
 
@@ -584,7 +753,7 @@ impl Parser {
             self.next_token();
             self.next_token();
 
-            identifiers.push(Identifier {
+            identifiers.push(Pengenal {
                 value: self.cur_token.literal.clone(),
             });
         }
@@ -597,7 +766,7 @@ impl Parser {
     }
 
     fn parse_panggilan_expression(&mut self, function: Expression) -> Option<Expression> {
-        let arguments = self.parse_expression_list(&TokenType::Rparen)?;
+        let arguments = self.parse_daftar_ekspresi(&TokenType::Rparen)?;
 
         Some(Expression::Panggilan(PanggilanExpression {
             function: Box::new(function),
@@ -606,11 +775,11 @@ impl Parser {
     }
 
     fn parse_array_literal(&mut self) -> Option<Expression> {
-        let elements = self.parse_expression_list(&TokenType::Rbracket)?;
+        let elements = self.parse_daftar_ekspresi(&TokenType::Rbracket)?;
         Some(Expression::ArrayLiteral(elements))
     }
 
-    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+    fn parse_indeks_expression(&mut self, left: Expression) -> Option<Expression> {
         self.next_token();
 
         let index = self.parse_expression(Precedence::Lowest)?;
@@ -619,7 +788,7 @@ impl Parser {
             return None;
         }
 
-        Some(Expression::IndexExpression(IndexExpression {
+        Some(Expression::Indeks(IndeksExpression {
             left: Box::new(left),
             index: Box::new(index),
         }))
@@ -653,7 +822,7 @@ impl Parser {
         Some(Expression::HashLiteral(pairs))
     }
 
-    /// Parse `masukkan("path")` or `masukkan(expr)`
+    /// Parsing `masukkan("path")` atau `masukkan(ekspresi)`
     fn parse_masukkan_expression(&mut self) -> Option<Expression> {
         if !self.expect_peek(&TokenType::Lparen) {
             return None;
@@ -671,9 +840,10 @@ impl Parser {
         }))
     }
 
-    // ── Helper ────────────────────────────────────────
+    // ── Fungsi pembantu ─────────────────────────────────
 
-    fn parse_expression_list(&mut self, end: &TokenType) -> Option<Vec<Expression>> {
+    /// Parsing daftar ekspresi yang dipisahkan koma, diakhiri token tertentu.
+    fn parse_daftar_ekspresi(&mut self, end: &TokenType) -> Option<Vec<Expression>> {
         let mut list = vec![];
 
         if self.peek_token_is(end) {

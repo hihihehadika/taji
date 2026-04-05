@@ -1,9 +1,9 @@
 use taji::evaluator;
 use taji::lexer::Lexer;
-use taji::object::{Environment, Object};
+use taji::object::{Lingkungan, Object};
 use taji::parser::Parser;
 
-// ── Helper ───────────────────────────────────────────
+// ── Fungsi pembantu ──────────────────────────────────
 
 fn test_eval(input: &str) -> Object {
     let lexer = Lexer::new(input);
@@ -14,7 +14,7 @@ fn test_eval(input: &str) -> Object {
         panic!("Parser errors for input '{}':\n{}", input, parser.errors.join("\n"));
     }
 
-    let mut env = Environment::new();
+    let mut env = Lingkungan::new();
     evaluator::eval(&program, &mut env)
 }
 
@@ -47,7 +47,7 @@ fn test_boolean_object(obj: &Object, expected: bool) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Existing tests (v0.1.0)
+//  Pengujian dasar (v0.1.0)
 // ═══════════════════════════════════════════════════════════
 
 #[test]
@@ -212,11 +212,11 @@ fn test_function_object() {
     let input = "fungsi(x) { x + 2; };";
     let result = test_eval(input);
     match result {
-        Object::Function(f) => {
+        Object::Fungsi(f) => {
             assert_eq!(f.parameters.len(), 1);
             assert_eq!(f.parameters[0].value, "x");
         }
-        _ => panic!("expected Function, got {:?}", result),
+        _ => panic!("expected Fungsi, got {:?}", result),
     }
 }
 
@@ -365,8 +365,8 @@ fn test_selama_loop() {
         misalkan x = 0;
         misalkan i = 0;
         selama (i < 5) {
-            misalkan x = x + 1;
-            misalkan i = i + 1;
+            x += 1;
+            i += 1;
         };
         x;
     ";
@@ -386,7 +386,7 @@ fn test_division_by_zero() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  NEW TESTS (v0.2.0)
+//  Pengujian fitur baru (v0.2.0)
 // ═══════════════════════════════════════════════════════════
 
 #[test]
@@ -622,7 +622,7 @@ fn test_builtin_waktu() {
 
 #[test]
 fn test_string_auto_concat() {
-    // String + Integer → auto convert
+    // Teks + Bilangan → konversi otomatis ke teks
     let input = "\"Umur: \" + 20";
     let result = test_eval(input);
     match result {
@@ -648,4 +648,275 @@ fn test_masukkan_import() {
 
     // Cleanup
     std::fs::remove_file(test_file).unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Pengujian fitur baru (v0.3.0)
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_builtin_pisah() {
+    let input = r#"pisah("a,b,c", ",")"#;
+    let result = test_eval(input);
+    match result {
+        Object::Array(arr) => {
+            assert_eq!(arr.len(), 3);
+            assert_eq!(format!("{}", arr[0]), "a");
+            assert_eq!(format!("{}", arr[1]), "b");
+            assert_eq!(format!("{}", arr[2]), "c");
+        }
+        _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_pisah_spasi() {
+    let input = r#"pisah("halo dunia taji", " ")"#;
+    let result = test_eval(input);
+    match result {
+        Object::Array(arr) => {
+            assert_eq!(arr.len(), 3);
+            assert_eq!(format!("{}", arr[0]), "halo");
+            assert_eq!(format!("{}", arr[1]), "dunia");
+            assert_eq!(format!("{}", arr[2]), "taji");
+        }
+        _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_pisah_error() {
+    let result = test_eval(r#"pisah(123, ",")"#);
+    match result {
+        Object::Error(msg) => {
+            assert!(
+                msg.contains("argumen pertama untuk 'pisah' harus TEKS"),
+                "pesan error tidak sesuai: {}", msg
+            );
+        }
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_gabung() {
+    let input = r#"gabung(["A", "B", "C"], "-")"#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "A-B-C"),
+        _ => panic!("diharapkan TEKS 'A-B-C', diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_gabung_kosong() {
+    let input = r#"gabung([], ",")"#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, ""),
+        _ => panic!("diharapkan TEKS kosong, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_gabung_error() {
+    let result = test_eval(r#"gabung("bukan daftar", ",")"#);
+    match result {
+        Object::Error(msg) => {
+            assert!(
+                msg.contains("argumen pertama untuk 'gabung' harus DAFTAR"),
+                "pesan error tidak sesuai: {}", msg
+            );
+        }
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_pisah_gabung_roundtrip() {
+    // Pisah lalu gabung harus mengembalikan teks asli
+    let input = r#"gabung(pisah("halo-dunia-taji", "-"), "-")"#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "halo-dunia-taji"),
+        _ => panic!("diharapkan TEKS asli, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_tulis_dan_baca_berkas() {
+    let test_dir = std::env::current_dir().unwrap();
+    let test_file = test_dir.join("_test_berkas.txt");
+
+    // Tulis ke file
+    let input_tulis = format!(
+        r#"tulis_berkas("{}", "Halo dari Taji!")"#,
+        test_file.to_str().unwrap().replace('\\', "\\\\")
+    );
+    let result = test_eval(&input_tulis);
+    match &result {
+        Object::Str(s) => assert!(s.contains("berhasil menulis")),
+        _ => panic!("diharapkan pesan berhasil menulis, diterima {:?}", result),
+    }
+
+    // Baca dari file
+    let input_baca = format!(
+        r#"baca_berkas("{}")"#,
+        test_file.to_str().unwrap().replace('\\', "\\\\")
+    );
+    let result = test_eval(&input_baca);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Halo dari Taji!"),
+        _ => panic!("diharapkan TEKS 'Halo dari Taji!', diterima {:?}", result),
+    }
+
+    // Cleanup
+    std::fs::remove_file(test_file).unwrap();
+}
+
+#[test]
+fn test_builtin_baca_berkas_tidak_ada() {
+    let result = test_eval(r#"baca_berkas("_file_yang_tidak_ada.txt")"#);
+    match result {
+        Object::Error(msg) => {
+            assert!(
+                msg.contains("gagal membaca berkas"),
+                "pesan error tidak sesuai: {}", msg
+            );
+        }
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+// ── Arrow Functions ─────────────────────────────────
+
+#[test]
+fn test_arrow_function_ekspresi_tunggal() {
+    // (x) => x * 2  → ekspresi tunggal (pengembalian implisit)
+    let input = "misalkan kali_dua = (x) => x * 2; kali_dua(5);";
+    let result = test_eval(input);
+    test_integer_object(&result, 10);
+}
+
+#[test]
+fn test_arrow_function_blok() {
+    // (x) => { kembalikan x + 10; }
+    let input = "misalkan tambah_sepuluh = (x) => { kembalikan x + 10; }; tambah_sepuluh(5);";
+    let result = test_eval(input);
+    test_integer_object(&result, 15);
+}
+
+#[test]
+fn test_arrow_function_multi_param() {
+    let input = "misalkan tambah = (a, b) => a + b; tambah(3, 7);";
+    let result = test_eval(input);
+    test_integer_object(&result, 10);
+}
+
+#[test]
+fn test_arrow_function_tanpa_param() {
+    let input = "misalkan salam = () => \"halo\"; salam();";
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "halo"),
+        _ => panic!("diharapkan TEKS 'halo', diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_arrow_function_closure() {
+    // Arrow function juga harus mendukung closure sama seperti fungsi biasa
+    let input = "
+        misalkan pembuat = (faktor) => {
+            kembalikan (x) => x * faktor;
+        };
+        misalkan kali_tiga = pembuat(3);
+        kali_tiga(4);
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 12);
+}
+
+#[test]
+fn test_arrow_function_sama_dengan_fungsi() {
+    // Arrow function dan fungsi biasa harus menghasilkan hasil yang sama
+    let input_fungsi = "misalkan f = fungsi(x) { x * x; }; f(6);";
+    let input_panah = "misalkan f = (x) => x * x; f(6);";
+    let result_fungsi = test_eval(input_fungsi);
+    let result_panah = test_eval(input_panah);
+
+    test_integer_object(&result_fungsi, 36);
+    test_integer_object(&result_panah, 36);
+}
+
+// ── Coba / Tangkap ──────────────────────────────────
+
+#[test]
+fn test_coba_tangkap_menangkap_error() {
+    let input = r#"
+        misalkan hasil = coba {
+            10 / 0;
+        } tangkap (err) {
+            "tertangkap: " + err;
+        };
+        hasil;
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert!(
+            s.contains("tertangkap"),
+            "pesan harus mengandung 'tertangkap', diterima: {}", s
+        ),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_coba_tangkap_tanpa_error() {
+    // Jika tidak ada error, blok tangkap tidak dieksekusi
+    let input = "
+        misalkan hasil = coba {
+            42;
+        } tangkap (err) {
+            0;
+        };
+        hasil;
+    ";
+    let result = test_eval(input);
+    test_integer_object(&result, 42);
+}
+
+#[test]
+fn test_coba_tangkap_pengenal_tidak_dikenal() {
+    let input = r#"
+        misalkan hasil = coba {
+            variabel_tidak_ada;
+        } tangkap (err) {
+            "aman: " + err;
+        };
+        hasil;
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert!(
+            s.contains("aman"),
+            "pesan harus mengandung 'aman', diterima: {}", s
+        ),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_coba_tangkap_error_variable_scope() {
+    // Variabel `err` hanya tersedia di dalam blok tangkap
+    let input = r#"
+        coba {
+            10 / 0;
+        } tangkap (galat) {
+            cetak(galat);
+        };
+    "#;
+    // Ini harus berjalan tanpa crash
+    let result = test_eval(input);
+    assert!(!result.is_error(), "tidak seharusnya error: {:?}", result);
 }
