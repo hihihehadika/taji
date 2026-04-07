@@ -1,7 +1,7 @@
-/// Modul AST (Abstract Syntax Tree) untuk bahasa Taji.
-///
-/// Mendefinisikan semua node yang membentuk pohon sintaks
-/// hasil parsing kode sumber Taji.
+//! Modul AST (Abstract Syntax Tree) untuk bahasa Taji.
+//!
+//! Mendefinisikan semua node yang membentuk pohon sintaks
+//! hasil parsing kode sumber Taji.
 
 use std::fmt;
 
@@ -34,6 +34,8 @@ pub enum Statement {
     Ekspresi(EkspresiStatement),
     Berhenti,
     Lanjut,
+    /// Pelemparan galat: `lemparkan "pesan";`
+    Lemparkan(LemparkanStatement),
 }
 
 impl fmt::Display for Statement {
@@ -44,6 +46,7 @@ impl fmt::Display for Statement {
             Statement::Ekspresi(s) => write!(f, "{}", s),
             Statement::Berhenti => write!(f, "berhenti;"),
             Statement::Lanjut => write!(f, "lanjut;"),
+            Statement::Lemparkan(s) => write!(f, "{}", s),
         }
     }
 }
@@ -79,6 +82,18 @@ pub struct EkspresiStatement {
 impl fmt::Display for EkspresiStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.expression)
+    }
+}
+
+/// Pelemparan galat: `lemparkan "pesan galat";`
+#[derive(Debug, Clone)]
+pub struct LemparkanStatement {
+    pub value: Expression,
+}
+
+impl fmt::Display for LemparkanStatement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "lemparkan {};", self.value)
     }
 }
 

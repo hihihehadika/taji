@@ -1,7 +1,7 @@
-/// Modul REPL (Read-Eval-Print Loop) untuk bahasa Taji.
-///
-/// Menyediakan antarmuka interaktif di terminal di mana pengguna
-/// bisa mengetik kode Taji dan langsung melihat hasil eksekusinya.
+//! Modul REPL (Read-Eval-Print Loop) untuk bahasa Taji.
+//!
+//! Menyediakan antarmuka interaktif di terminal di mana pengguna
+//! bisa mengetik kode Taji dan langsung melihat hasil eksekusinya.
 
 use crate::evaluator;
 use crate::lexer::Lexer;
@@ -14,7 +14,7 @@ const PROMPT: &str = "taji >> ";
 const BANNER: &str = r#"
   ======================================================
         TAJI - Bahasa Pemrograman Indonesia         
-        Versi 0.3.0                                   
+        Versi 0.4.0                                   
         Ketik 'keluar' untuk berhenti.                
   ======================================================
 "#;
@@ -49,7 +49,7 @@ where
 
         // Perintah khusus: keluar
         if trimmed == "keluar" {
-            let _ = writeln!(output, "  Sampai jumpa! 👋");
+            let _ = writeln!(output, "  Sampai jumpa!");
             return;
         }
 
@@ -59,7 +59,7 @@ where
 
         // Tampilkan error parsing jika ada
         if !p.errors.is_empty() {
-            let _ = writeln!(output, "  ⚠️  Ditemukan kesalahan:");
+            let _ = writeln!(output, "  Ditemukan kesalahan:");
             for err in &p.errors {
                 let _ = writeln!(output, "    → {}", err);
             }
@@ -73,7 +73,7 @@ where
         match &result {
             Object::Null => {}
             Object::Error(msg) => {
-                let _ = writeln!(output, "  ❌ KESALAHAN: {}", msg);
+                let _ = writeln!(output, "  KESALAHAN: {}", msg);
             }
             _ => {
                 let _ = writeln!(output, "  → {}", result);

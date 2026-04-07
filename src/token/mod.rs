@@ -67,6 +67,7 @@ pub enum TokenType {
     Bukan,      // not (logical negation alias)
     Coba,       // try
     Tangkap,    // catch
+    Lemparkan,  // throw
 }
 
 /// Representasi sebuah token hasil analisis leksikal.
@@ -103,6 +104,7 @@ impl Token {
             "bukan"      => TokenType::Bukan,
             "coba"       => TokenType::Coba,
             "tangkap"    => TokenType::Tangkap,
+            "lemparkan"  => TokenType::Lemparkan,
             _            => TokenType::Ident,
         }
     }

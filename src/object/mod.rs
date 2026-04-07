@@ -1,7 +1,7 @@
-/// Modul Objek untuk bahasa Taji.
-///
-/// Mendefinisikan semua tipe data yang dihasilkan oleh evaluator,
-/// termasuk sistem lingkungan (scope chain) untuk variabel.
+//! Modul Objek untuk bahasa Taji.
+//!
+//! Mendefinisikan semua tipe data yang dihasilkan oleh evaluator,
+//! termasuk sistem lingkungan (scope chain) untuk variabel.
 
 use crate::ast::{BlokPernyataan, Pengenal};
 use std::cell::RefCell;

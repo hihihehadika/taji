@@ -1,7 +1,7 @@
-/// Lexer (Pemindai Leksikal) untuk bahasa Taji.
-///
-/// Memecah kode sumber menjadi deretan token yang akan
-/// diproses oleh Parser.
+//! Lexer (Pemindai Leksikal) untuk bahasa Taji.
+//!
+//! Memecah kode sumber menjadi deretan token yang akan
+//! diproses oleh Parser.
 
 use crate::token::{Token, TokenType};
 
@@ -184,16 +184,28 @@ impl Lexer {
 
     /// Membaca teks literal di antara tanda kutip ganda.
     fn read_string(&mut self) -> String {
-        let position = self.position + 1;
+        let mut string = String::new();
         loop {
             self.read_char();
             if self.ch == '"' || self.ch == '\0' {
                 break;
             }
+            if self.ch == '\\' {
+                self.read_char();
+                match self.ch {
+                    'n' => string.push('\n'),
+                    't' => string.push('\t'),
+                    'r' => string.push('\r'),
+                    '\\' => string.push('\\'),
+                    '"' => string.push('"'),
+                    _ => string.push(self.ch),
+                }
+            } else {
+                string.push(self.ch);
+            }
         }
-        let s = self.input[position..self.position].iter().collect();
         self.read_char();
-        s
+        string
     }
 
     /// Melewati spasi, tab, newline, dan komentar satu baris (`//`).

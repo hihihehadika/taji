@@ -1,3 +1,5 @@
+//! Pengujian unit untuk Lexer bahasa Taji.
+
 use taji::lexer::Lexer;
 use taji::token::TokenType;
 

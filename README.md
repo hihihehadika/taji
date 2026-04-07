@@ -1,279 +1,168 @@
-# Taji
+# Taji (v0.4.0)
 
 <p align="center">
   <img src="https://img.shields.io/badge/bahasa-Rust-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/versi-0.3.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/versi-0.4.0-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/lisensi-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/tests-92%2B%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
-  <img src="https://img.shields.io/badge/dependensi-0-purple?style=for-the-badge" alt="Zero Dependencies">
+  <img src="https://img.shields.io/badge/tests-107%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/dependensi-Minimal-purple?style=for-the-badge" alt="Minimal Dependencies">
   <img src="https://img.shields.io/badge/sintaks-Bahasa%20Indonesia-red?style=for-the-badge" alt="Bahasa Indonesia">
 </p>
 
-**Bahasa pemrograman modern dengan sintaks Bahasa Indonesia Baku, dibangun sepenuhnya menggunakan Rust.**
+**Bahasa pemrograman dengan sintaks Bahasa Indonesia Baku, dibangun menggunakan Rust.**
 
-Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas namun *powerful*—seperti namanya. Proyek ini dibangun dari nol tanpa menggunakan generator parser atau library eksternal.
+Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas dan mendidik. Proyek ini dibangun dari nol tanpa menggunakan _parser generator_, namun dilengkapi dengan fitur-fitur pendukung seperti penanganan galat, sistem modul, dan manipulasi JSON terbuka.
 
 ---
 
-## Fitur
+## Fitur Utama v0.4.0
 
-| Fitur | Deskripsi |
+| Fitur | Spesifikasi Khusus |
 | --- | --- |
-| **Sintaks Bahasa Indonesia** | Kata kunci: `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut`, `coba`, `tangkap` |
-| **Tipe Data Lengkap** | Bilangan bulat, desimal (*float*), teks (*string*), boolean (`benar`/`salah`), daftar (*array*), kamus (*hash map*) |
-| **Fungsi & Closure** | Fungsi tradisional dan Arrow Function (`=>`), mendukung closure dan rekursi |
-| **Kontrol Alur** | Percabangan `jika`/`lainnya`, perulangan `selama` dan `untuk` |
-| **Operator Lengkap** | Aritmatika (`+`, `-`, `*`, `/`, `%`), perbandingan (`==`, `!=`, `<`, `>`, `<=`, `>=`), logika (`dan`, `atau`, `bukan`), assignment (`=`, `+=`, `-=`, `*=`, `/=`) |
-| **Fungsi Bawaan** | `cetak()`, `tanya()`, `waktu()`, `teks()`, `angka()`, `panjang()`, `tipe()`, `dorong()`, `pertama()`, `terakhir()`, `sisa()`, `pisah()`, `gabung()`, `baca_berkas()`, `tulis_berkas()` |
-| **Sistem Modul** | Import langsung file lain menggunakan `masukkan("file.tj")` |
-| **Komentar** | Komentar satu baris dengan `//` |
-| **Error Handling** | Penanganan galat menggunakan blok `coba / tangkap` serta pesan galat berbahasa Indonesia. |
-| **REPL Interaktif** | Terminal interaktif untuk menguji kode secara langsung |
-| **Eksekusi File** | Jalankan file script `.tj` dari command line |
+| **Sintaks Bahasa Indonesia** | `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut`, `coba`, `tangkap`, `lemparkan`. |
+| **Pemrograman Fungsional** | Dilengkapi fitur Array manipulation ala JS: `petakan (map)`, `saring (filter)`, `dorong (push)`. |
+| **Sistem Tipe Dinamis** | Angka Bulat, Desimal (*float*), Teks, Boolean, Daftar (*array*), dan Kamus (*hash map* / *dictionary*). |
+| **Ekosistem JSON Bawaan** | Ubah Kamus jadi JSON dan sebaliknya (`ke_json` & `dari_json`) secara natif untuk kebutuhan *Web-Service* / API. |
+| **Penanganan Galat Modern** | Punya sistem `coba`, `tangkap(err)`, dan pemanggilan `lemparkan format("galat: {}", x);`. |
+| **Pemformatan Teks Cerdas** | Rangkai *string* dengan interpolasi aman menggunakan `format("hallo {}", nama)`. |
+| **Sistem Modul (*Import*)** | Bongkar-pasang komponen file kode dengan instan: `masukkan("pustaka.tj")`. |
 
 ---
 
-## Instalasi
+## Instalasi dan Kompilasi
 
 ### Prasyarat
-- [Rust & Cargo](https://rustup.rs/) (versi 1.70.0 atau lebih baru)
+Kamu harus menginstal [Rust & Cargo](https://rustup.rs/) (Minimal versi 1.70.0).
 
-### Build dari Sumber
+### Build Cepat
 ```bash
 git clone https://github.com/hihihehadika/taji.git
 cd taji
 cargo build --release
 ```
-
-Binary akan tersedia di `target/release/taji`.
+Program `taji` yang sudah di-kompilasi (*binary-executable*) akan diletakkan di dalam `target/release/taji`.
 
 ---
 
-## Cara Penggunaan
+## Cara Menjalankan Taji
 
-### Mode REPL (Interaktif)
+### 1. REPL (Terminal Interaktif Langsung)
+Cocok untuk sekadar mencoba logika dan sintaks di memori.
 ```bash
 cargo run
 ```
-```
-  ======================================================
+```text
+  ==========================================
         TAJI - Bahasa Pemrograman Indonesia         
-        Versi 0.3.0                                   
         Ketik 'keluar' untuk berhenti.                
-  ======================================================
+  ==========================================
 
-taji >> misalkan x = 5 + 3 * 2;
-  → 11
-taji >> cetak(x);
-11
-taji >> keluar
-  Sampai jumpa!
+taji >> misalkan data = [1, 2, 3];
+  → [1, 2, 3]
+taji >> petakan(data, (x) => x * x)
+  → [1, 4, 9]
 ```
 
-### Mode File
+### 2. Mengeksekusi Berkas (.tj)
+Jalankan file script `.tj` melalui *command line*:
 ```bash
-cargo run -- contoh/halo.tj
+cargo run -- contoh/demo_lengkap.tj
 ```
 
 ---
 
-## Referensi Bahasa
+## Referensi Sintaks Dasar
 
-### Variabel
+### Deklarasi, Loop, & IF Biasa
 ```taji
-misalkan nama = "Taji";
-misalkan umur = 1;
-misalkan aktif = benar;
-```
-
-### Operasi Matematika
-```taji
-misalkan hasil = (10 + 5) * 2 - 3;   // 27
-misalkan sisa = 17 % 5;               // 2
-```
-
-### Kondisional
-```taji
-misalkan nilai = 85;
-
-jika (nilai >= 90) {
-    cetak("Sangat Baik");
-} lainnya {
-    jika (nilai >= 80) {
-        cetak("Baik");
-    } lainnya {
-        cetak("Cukup");
-    };
+misalkan stok = 100;
+untuk (misalkan i = 1; i <= 5; i += 1) {
+    jika (i == 3) { lanjut; }; // Skip putaran 3
+    stok -= i;
 };
-```
-
-### Perulangan
-```taji
-// Menggunakan 'selama' (while loop)
-misalkan i = 0;
-selama (i < 5) {
-    cetak(i);
-    i += 1;
-};
-
-// Menggunakan 'untuk' (for loop gaya C)
-misalkan total = 0;
-untuk (misalkan j = 1; j <= 5; j += 1) {
-    jika (j == 3) { lanjut; }; // Lewati 3
-    total += j;
-};
-```
-
-### Fungsi & Arrow Function
-```taji
-// Definisi fungsi klasik
-misalkan faktorial = fungsi(n) {
-    jika (n <= 1) {
-        kembalikan 1;
-    };
-    kembalikan n * faktorial(n - 1);
-};
-
-// Arrow Function
-misalkan kuadrat = (x) => x * x;
-misalkan tambah = (a, b) => a + b;
-
-cetak(kuadrat(5));   // 25
+cetak(format("Sisa stok hari ini: {}", stok));
 ```
 
 ### Penanganan Galat (Error Handling)
+Taji mendukung blok `coba` / `tangkap` serta kata kunci `lemparkan`:
 ```taji
-misalkan hasil = coba {
-    10 / 0;
-} tangkap (err) {
-    cetak("Terjadi galat: " + err);
-    0;
+misalkan transfer = fungsi(saldo, tarik) {
+    jika (tarik > saldo) {
+        lemparkan format("Uang tak cukup! Saldo hanya {}, diminta {}", saldo, tarik);
+    };
+    kembalikan saldo - tarik;
+};
+
+coba {
+    transfer(100, 500); // Memicu galat
+} tangkap(err) {
+    cetak("[GALAT SISTEM] " + err);
 };
 ```
 
-### Daftar (Array)
+### Pemrograman Fungsional & Panah Singkat
 ```taji
-misalkan buah = ["Apel", "Mangga", "Jeruk"];
-
-cetak(buah[0]);            // Apel
-cetak(panjang(buah));      // 3
-
-// Manipulasi teks & daftar
-misalkan huruf = pisah("a,b,c", ",");
-cetak(gabung(huruf, "-")); // "a-b-c"
+misalkan angka = [10, 15, 20, 25];
+// Saring yang memenuhi kondisi (=> true)
+misalkan genap = saring(angka, (x) => x % 2 == 0);
+cetak(genap); // [10, 20]
 ```
 
-### Kamus (Hash Map)
+### Manipulasi JSON
 ```taji
-misalkan profil = {
-    "nama": "Dika",
-    "umur": 20,
-    "bahasa": "Taji"
-};
+// Konversi langsung String format JSON ke Objek/Array
+misalkan teks_json = "{\"status\": \"OKE\", \"nilai\": [1,2,3]}";
+misalkan respon = dari_json(teks_json);
 
-cetak(profil["nama"]);     // Dika
-cetak(profil["umur"]);     // 20
+cetak(respon["status"]); // Mencetak: OKE
 ```
 
-### Sistem Modul (Import)
-
-Kamu bisa memanggil file `.tj` lain dan menggunakan fungsi serta variabelnya dari objek Kamus.
-
-**matematika.tj**
+### Sistem Pustaka (Impor Berkas Lain)
+**pustaka.tj**
 ```taji
-misalkan PI = 3.14;
-misalkan tambah = (a, b) => a + b;
+misalkan PI = 3.14159;
 ```
-
 **utama.tj**
 ```taji
-misalkan mate = masukkan("matematika.tj");
-cetak(mate.PI);
-cetak(mate.tambah(10, 5));
+misalkan matematika = masukkan("pustaka.tj");
+cetak("Nilai Lingkaran: " + matematika.PI);
 ```
 
 ---
 
-## Fungsi Bawaan
+## Daftar Pustaka Fungsi Bawaan
 
-| Fungsi | Deskripsi | Contoh |
+| Kategori | Nama Fungsi & Contoh | Tipe Kembalian |
 | --- | --- | --- |
-| `cetak(nilai)` | Mencetak nilai ke layar | `cetak("Halo!")` |
-| `tanya(prompt)` | Membaca input dari terminal | `tanya("Siapa namamu? ")` |
-| `waktu()` | Waktu sistem (ms) saat ini | `waktu()` → `1712242191` |
-| `teks(obj)` | Konversi ke Teks | `teks(42)` → `"42"` |
-| `angka(teks)` | Konversi ke Angka | `angka("3.14")` → `3.14` |
-| `panjang(obj)` | Panjang teks atau daftar | `panjang("Taji")` → `4` |
-| `tipe(obj)` | Nama tipe data objek | `tipe(42)` → `"BILANGAN"` |
-| `dorong(arr, val)` | Tambah elemen ke akhir daftar | `dorong([1,2], 3)` → `[1,2,3]` |
-| `pertama(arr)` | Elemen pertama daftar | `pertama([1,2,3])` → `1` |
-| `terakhir(arr)` | Elemen terakhir daftar | `terakhir([1,2,3])` → `3` |
-| `sisa(arr)` | Semua elemen kecuali pertama | `sisa([1,2,3])` → `[2,3]` |
-| `pisah(txt, sep)` | Memecah teks ke daftar | `pisah("a,b", ",")` → `["a", "b"]` |
-| `gabung(arr, sep)` | Menggabungkan daftar ke teks | `gabung([1,2], "-")` → `"1-2"` |
-| `baca_berkas(path)`| Membaca isi file teks | `baca_berkas("data.txt")` |
-| `tulis_berkas(path, txt)`| Menulis teks ke file | `tulis_berkas("data.txt", "oke")` |
+| **I / O** | `cetak(nilai)`, `tanya("nama: ")` | `-`, `Teks` |
+| **Konversi**| `teks(5) -> "5"`, `angka("3.1) -> 3.1` | `Teks`, `Desimal` |
+| **Format** | `format("halo {}", nama)` | `Teks` |
+| **Array** | `panjang(A)`, `pertama(A)`, `terakhir(A)`, `dorong(A, 5)` | `Campuran` |
+| **String** | `pisah("A B", " ")`, `gabung(A, "-")` | `Array`, `Teks` |
+| **Berkas** | `baca_berkas(X)`, `tulis_berkas(X, Y)` | `Teks`, `-` |
+| **Logika** | `petakan(val, func)`, `saring(val, func)` | `Array` |
+| **JSON** | `dari_json(str)`, `ke_json(obj)` | `Objek`, `Teks` |
 
 ---
 
-## Arsitektur
-
-Taji dibangun dengan arsitektur interpreter klasik menggunakan **Pratt Parser**:
-
-```
-Kode Sumber (.tj)
-       │
-       ▼
-   ┌────────┐
-   │ Lexer  │  Memecah teks menjadi token
-   └────┬───┘
-       │
-       ▼
-   ┌────────┐
-   │ Parser │  Menyusun token menjadi AST (Pratt Parser)
-   └────┬───┘
-       │
-       ▼
-   ┌───────────┐
-   │ Evaluator │  Mengeksekusi AST dan menghasilkan output
-   └───────────┘
-```
+## Struktur Mesin Evaluasi
+Proyek ini diukur dari *software architecture* kelas tinggi yang memisahkan area menjadi 3 bagian inti:
+1. `Membaca` ➔ **Lexer** mengubah Teks kode mentah menjadi Token (Tanda Baca).
+2. `Memahamkan` ➔ **Parser** (mekanisme Pratt Parser) merangkai token jadi Pohon Abstrak (*AST / Abstract Syntax Tree*).
+3. `Mengeksekusi` ➔ **Evaluator** berjalan di atas AST untuk mendikte aksi ke sistem operasi.
 
 ---
 
-## Menjalankan Test
-
+## Pengujian Unit (Unit Testing)
+Bukan interpreter stabil namanya bila bisa menembus galat aneh. Seluruh fungsi dijaga mati-matian oleh `cargo test`.
+Ada **107+ Tests Murni** yang siap menangkal *bug-regression* setiap kali kamu mengetik fitur baru!
 ```bash
 cargo test
 ```
 
-Test suite mencakup **92+ test cases** yang menguji:
-- Tokenisasi (lexer)
-- Parsing ekspresi & prioritas operator
-- Evaluasi aritmatika (Int & Float), boolean, string
-- Loop kontrol (`untuk`, `selama`, `berhenti`, `lanjut`)
-- Fungsi, arrow function, closure, dan rekursi
-- Penanganan galat (`coba` / `tangkap`)
-- Array, hash map, dot access, dan indeks
-- Sistem import (`masukkan`)
-- Fungsi I/O bawaan
-
----
-
-## Dibangun Dengan
-
-- **[Rust](https://www.rust-lang.org/)** — Bahasa pemrograman sistem yang aman dan cepat
-- **Tanpa dependensi eksternal** — Seluruh lexer, parser, dan evaluator ditulis dari nol
-
----
-
-## Lisensi
-
-Proyek ini dilisensikan di bawah [MIT License](LICENSE).
-
----
-
+<br>
 <p align="center">
-  Dibuat oleh Dika.
+  Didesain dan dikembangkan agar relevan dan aplikatif.<br>
+  <b>Oleh Dika.</b>
 </p>
 

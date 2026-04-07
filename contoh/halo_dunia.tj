@@ -1,0 +1,6 @@
+// ==========================================
+// TAJI - Contoh Script: Hallo Dunia Khusus Pemula
+// ==========================================
+
+cetak("Halo Dunia!");
+cetak("Selamat datang di bahasa pemrograman Taji!");

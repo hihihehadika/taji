@@ -1,9 +1,9 @@
-/// Modul Evaluator untuk bahasa Taji.
-///
-/// Evaluator adalah "otak" yang menelusuri AST dan mengeksekusi
-/// setiap instruksi. Mendukung: aritmatika (bilangan bulat & desimal),
-/// kondisi, fungsi, perulangan, berhenti/lanjut, penugasan,
-/// dan impor modul.
+//! Modul Evaluator untuk bahasa Taji.
+//!
+//! Evaluator adalah "otak" yang menelusuri AST dan mengeksekusi
+//! setiap instruksi. Mendukung: aritmatika (bilangan bulat & desimal),
+//! kondisi, fungsi, perulangan, berhenti/lanjut, penugasan,
+//! dan impor modul.
 
 use crate::ast::*;
 use crate::lexer::Lexer;
@@ -64,6 +64,14 @@ fn eval_statement(stmt: &Statement, env: &mut Lingkungan) -> Object {
         }
         Statement::Berhenti => Object::Break,
         Statement::Lanjut => Object::Continue,
+        Statement::Lemparkan(lempar) => {
+            let val = eval_expression(&lempar.value, env);
+            if val.is_error() {
+                return val;
+            }
+            // Konversi nilai menjadi teks untuk pesan galat
+            Object::Error(val.to_string())
+        }
     }
 }
 
@@ -801,6 +809,11 @@ fn get_builtin(name: &str) -> Option<Object> {
         "gabung" => Some(Object::Bawaan(builtin_gabung)),
         "baca_berkas" => Some(Object::Bawaan(builtin_baca_berkas)),
         "tulis_berkas" => Some(Object::Bawaan(builtin_tulis_berkas)),
+        "petakan" => Some(Object::Bawaan(builtin_petakan)),
+        "saring" => Some(Object::Bawaan(builtin_saring)),
+        "format" => Some(Object::Bawaan(builtin_format)),
+        "dari_json" => Some(Object::Bawaan(builtin_dari_json)),
+        "ke_json" => Some(Object::Bawaan(builtin_ke_json)),
         _ => None,
     }
 }
@@ -1134,6 +1147,265 @@ fn builtin_tulis_berkas(args: Vec<Object>) -> Object {
     match std::fs::write(&path, &isi) {
         Ok(_) => Object::Str(format!("berhasil menulis ke '{}'", path)),
         Err(e) => Object::Error(format!("gagal menulis berkas '{}': {}", path, e)),
+    }
+}
+
+/// `petakan(daftar, fungsi)` — Menerapkan fungsi ke setiap elemen daftar.
+/// Callback menerima tepat 1 argumen (elemen).
+fn builtin_petakan(args: Vec<Object>) -> Object {
+    if args.len() != 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'petakan': diharapkan 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let daftar = match &args[0] {
+        Object::Array(arr) => arr.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'petakan' harus DAFTAR, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let fungsi = &args[1];
+    match fungsi {
+        Object::Fungsi(_) | Object::Bawaan(_) => {}
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'petakan' harus FUNGSI, diterima {}",
+                fungsi.type_name()
+            ));
+        }
+    }
+
+    let mut hasil = Vec::with_capacity(daftar.len());
+    for elemen in daftar {
+        let ret = apply_function(fungsi.clone(), vec![elemen]);
+        if ret.is_error() {
+            return ret;
+        }
+        hasil.push(ret);
+    }
+
+    Object::Array(hasil)
+}
+
+/// `saring(daftar, fungsi)` — Menyaring elemen daftar berdasarkan fungsi predikat.
+/// Callback menerima tepat 1 argumen (elemen), mengembalikan truthy/falsy.
+fn builtin_saring(args: Vec<Object>) -> Object {
+    if args.len() != 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'saring': diharapkan 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let daftar = match &args[0] {
+        Object::Array(arr) => arr.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'saring' harus DAFTAR, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let fungsi = &args[1];
+    match fungsi {
+        Object::Fungsi(_) | Object::Bawaan(_) => {}
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'saring' harus FUNGSI, diterima {}",
+                fungsi.type_name()
+            ));
+        }
+    }
+
+    let mut hasil = vec![];
+    for elemen in daftar {
+        let ret = apply_function(fungsi.clone(), vec![elemen.clone()]);
+        if ret.is_error() {
+            return ret;
+        }
+        if is_truthy(&ret) {
+            hasil.push(elemen);
+        }
+    }
+
+    Object::Array(hasil)
+}
+
+/// `format(pola, ...argumen)` — Pemformatan teks dinamis.
+/// Mengganti setiap `{}` dalam pola dengan argumen secara berurutan.
+fn builtin_format(args: Vec<Object>) -> Object {
+    if args.is_empty() {
+        return Object::Error(
+            "jumlah argumen salah untuk 'format': diharapkan minimal 1, diterima 0".to_string(),
+        );
+    }
+
+    let pola = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'format' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let mut hasil = String::new();
+    let mut arg_idx = 1;
+    let mut chars = pola.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            if chars.peek() == Some(&'}') {
+                chars.next(); // konsumsi '}'
+                if arg_idx < args.len() {
+                    hasil.push_str(&format!("{}", args[arg_idx]));
+                    arg_idx += 1;
+                } else {
+                    return Object::Error(
+                        "jumlah argumen tidak cukup untuk 'format': pola memiliki lebih banyak '{}' daripada argumen yang diberikan".to_string()
+                    );
+                }
+            } else {
+                hasil.push(ch);
+            }
+        } else {
+            hasil.push(ch);
+        }
+    }
+
+    Object::Str(hasil)
+}
+
+/// `dari_json(teks)` — Mengurai teks JSON menjadi objek Taji.
+fn builtin_dari_json(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'dari_json': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    let teks = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen untuk 'dari_json' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    match serde_json::from_str::<serde_json::Value>(&teks) {
+        Ok(val) => json_value_to_object(val),
+        Err(e) => Object::Error(format!("gagal mengurai JSON: {}", e)),
+    }
+}
+
+/// Mengonversi serde_json::Value menjadi Object Taji.
+fn json_value_to_object(val: serde_json::Value) -> Object {
+    match val {
+        serde_json::Value::Null => Object::Null,
+        serde_json::Value::Bool(b) => Object::Boolean(b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Object::Integer(i)
+            } else if let Some(f) = n.as_f64() {
+                Object::Float(f)
+            } else {
+                Object::Null
+            }
+        }
+        serde_json::Value::String(s) => Object::Str(s),
+        serde_json::Value::Array(arr) => {
+            let elems: Vec<Object> = arr.into_iter().map(json_value_to_object).collect();
+            Object::Array(elems)
+        }
+        serde_json::Value::Object(map) => {
+            let mut hash = HashMap::new();
+            for (k, v) in map {
+                hash.insert(KunciKamus::Str(k), json_value_to_object(v));
+            }
+            Object::Hash(hash)
+        }
+    }
+}
+
+/// `ke_json(objek)` atau `ke_json(objek, benar)` — Mengonversi objek Taji ke teks JSON.
+/// Argumen kedua opsional: jika `benar`, hasilnya diformat rapi (pretty print).
+fn builtin_ke_json(args: Vec<Object>) -> Object {
+    if args.is_empty() || args.len() > 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'ke_json': diharapkan 1 atau 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let pretty = if args.len() == 2 {
+        is_truthy(&args[1])
+    } else {
+        false
+    };
+
+    let json_val = object_to_json_value(&args[0]);
+
+    match json_val {
+        Some(val) => {
+            if pretty {
+                match serde_json::to_string_pretty(&val) {
+                    Ok(s) => Object::Str(s),
+                    Err(e) => Object::Error(format!("gagal mengonversi ke JSON: {}", e)),
+                }
+            } else {
+                match serde_json::to_string(&val) {
+                    Ok(s) => Object::Str(s),
+                    Err(e) => Object::Error(format!("gagal mengonversi ke JSON: {}", e)),
+                }
+            }
+        }
+        None => Object::Error(
+            "tipe data tidak didukung untuk konversi ke JSON".to_string(),
+        ),
+    }
+}
+
+/// Mengonversi Object Taji menjadi serde_json::Value.
+fn object_to_json_value(obj: &Object) -> Option<serde_json::Value> {
+    match obj {
+        Object::Null => Some(serde_json::Value::Null),
+        Object::Boolean(b) => Some(serde_json::Value::Bool(*b)),
+        Object::Integer(i) => Some(serde_json::json!(*i)),
+        Object::Float(f) => Some(serde_json::json!(*f)),
+        Object::Str(s) => Some(serde_json::Value::String(s.clone())),
+        Object::Array(arr) => {
+            let vals: Vec<serde_json::Value> = arr
+                .iter()
+                .filter_map(object_to_json_value)
+                .collect();
+            Some(serde_json::Value::Array(vals))
+        }
+        Object::Hash(map) => {
+            let mut json_map = serde_json::Map::new();
+            for (k, v) in map {
+                let key_str = match k {
+                    KunciKamus::Str(s) => s.clone(),
+                    KunciKamus::Integer(i) => i.to_string(),
+                    KunciKamus::Boolean(b) => b.to_string(),
+                };
+                if let Some(jv) = object_to_json_value(v) {
+                    json_map.insert(key_str, jv);
+                }
+            }
+            Some(serde_json::Value::Object(json_map))
+        }
+        _ => None,
     }
 }
 

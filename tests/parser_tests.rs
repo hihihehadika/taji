@@ -1,3 +1,4 @@
+//! Pengujian unit untuk Parser bahasa Taji.
 use taji::lexer::Lexer;
 use taji::parser::Parser;
 

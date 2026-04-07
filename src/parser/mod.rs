@@ -2,7 +2,6 @@
 ///
 /// Menggunakan algoritma **Pratt Parser** (Top-Down Operator Precedence)
 /// untuk mengubah deretan token menjadi pohon sintaks (AST).
-
 use crate::ast::*;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -134,10 +133,7 @@ impl Parser {
     }
 
     fn no_prefix_parse_error(&mut self, t: &TokenType) {
-        let msg = format!(
-            "Kesalahan: tidak ada aturan parsing awalan untuk {:?}",
-            t
-        );
+        let msg = format!("Kesalahan: tidak ada aturan parsing awalan untuk {:?}", t);
         self.errors.push(msg);
     }
 
@@ -146,9 +142,7 @@ impl Parser {
     // ═══════════════════════════════════════════════════════
 
     pub fn parse_program(&mut self) -> Program {
-        let mut program = Program {
-            statements: vec![],
-        };
+        let mut program = Program { statements: vec![] };
 
         while !self.cur_token_is(&TokenType::Eof) {
             if let Some(stmt) = self.parse_statement() {
@@ -168,6 +162,7 @@ impl Parser {
         match self.cur_token.type_ {
             TokenType::Misalkan => self.parse_misalkan_statement(),
             TokenType::Kembalikan => self.parse_kembalikan_statement(),
+            TokenType::Lemparkan => self.parse_lemparkan_statement(),
             TokenType::Berhenti => {
                 if self.peek_token_is(&TokenType::Semicolon) {
                     self.next_token();
@@ -217,9 +212,21 @@ impl Parser {
             self.next_token();
         }
 
-        Some(Statement::Kembalikan(KembalikanStatement {
-            return_value,
-        }))
+        Some(Statement::Kembalikan(KembalikanStatement { return_value }))
+    }
+
+    /// Parsing `lemparkan <ekspresi>;`
+    /// Mekanisme identis dengan `kembalikan` — melempar Object::Error.
+    fn parse_lemparkan_statement(&mut self) -> Option<Statement> {
+        self.next_token();
+
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(&TokenType::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Lemparkan(LemparkanStatement { value }))
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
@@ -239,9 +246,7 @@ impl Parser {
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left = self.parse_prefix()?;
 
-        while !self.peek_token_is(&TokenType::Semicolon)
-            && precedence < self.peek_precedence()
-        {
+        while !self.peek_token_is(&TokenType::Semicolon) && precedence < self.peek_precedence() {
             if !self.has_infix_rule(&self.peek_token.type_.clone()) {
                 return Some(left);
             }
@@ -290,9 +295,7 @@ impl Parser {
             TokenType::Float => self.parse_float_literal(),
             TokenType::Str => Some(self.parse_string_literal()),
             TokenType::Benar | TokenType::Salah => Some(self.parse_boolean_literal()),
-            TokenType::Bang | TokenType::Minus | TokenType::Bukan => {
-                self.parse_prefix_expression()
-            }
+            TokenType::Bang | TokenType::Minus | TokenType::Bukan => self.parse_prefix_expression(),
             TokenType::Lparen => self.parse_grouped_expression(),
             TokenType::Jika => self.parse_jika_expression(),
             TokenType::Selama => self.parse_selama_expression(),
@@ -376,7 +379,8 @@ impl Parser {
                 return self.parse_fungsi_panah_badan(vec![]);
             }
             // `()` tanpa `=>` → error, kurung kosong bukan ekspresi valid
-            self.errors.push("Kesalahan: ekspresi kosong di dalam kurung".to_string());
+            self.errors
+                .push("Kesalahan: ekspresi kosong di dalam kurung".to_string());
             return None;
         }
 
@@ -460,9 +464,7 @@ impl Parser {
             // Bungkus sebagai satu pernyataan ekspresi di dalam blok
             let expr = self.parse_expression(Precedence::Lowest)?;
             BlokPernyataan {
-                statements: vec![Statement::Ekspresi(EkspresiStatement {
-                    expression: expr,
-                })],
+                statements: vec![Statement::Ekspresi(EkspresiStatement { expression: expr })],
             }
         };
 
@@ -559,9 +561,8 @@ impl Parser {
         let name = match left {
             Expression::Pengenal(ident) => ident,
             _ => {
-                self.errors.push(
-                    "Kesalahan: sisi kiri penugasan harus berupa nama variabel".to_string(),
-                );
+                self.errors
+                    .push("Kesalahan: sisi kiri penugasan harus berupa nama variabel".to_string());
                 return None;
             }
         };
@@ -679,10 +680,8 @@ impl Parser {
         let update = self.parse_statement()?;
 
         // Setelah pembaruan, butuh kurung tutup
-        if !self.expect_peek(&TokenType::Rparen) {
-            if !self.cur_token_is(&TokenType::Rparen) {
-                return None;
-            }
+        if !self.expect_peek(&TokenType::Rparen) && !self.cur_token_is(&TokenType::Rparen) {
+            return None;
         }
 
         if !self.expect_peek(&TokenType::Lbrace) {

@@ -1,3 +1,4 @@
+//! Pengujian unit untuk Evaluator bahasa Taji.
 use taji::evaluator;
 use taji::lexer::Lexer;
 use taji::object::{Lingkungan, Object};
@@ -919,4 +920,212 @@ fn test_coba_tangkap_error_variable_scope() {
     // Ini harus berjalan tanpa crash
     let result = test_eval(input);
     assert!(!result.is_error(), "tidak seharusnya error: {:?}", result);
+}
+
+// ── Lemparkan (Throw) ───────────────────────────────
+
+#[test]
+fn test_lemparkan_dasar() {
+    let input = r#"lemparkan "ada masalah";"#;
+    let result = test_eval(input);
+    match result {
+        Object::Error(msg) => assert_eq!(msg, "ada masalah"),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_lemparkan_ditangkap_coba() {
+    let input = r#"
+        misalkan hasil = coba {
+            lemparkan "galat kustom";
+        } tangkap (err) {
+            "tertangkap: " + err;
+        };
+        hasil;
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "tertangkap: galat kustom"),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_lemparkan_dari_fungsi() {
+    let input = r#"
+        misalkan bagi = fungsi(a, b) {
+            jika (b == 0) {
+                lemparkan "tidak boleh bagi nol";
+            };
+            kembalikan a / b;
+        };
+        misalkan hasil = coba {
+            bagi(10, 0);
+        } tangkap (err) {
+            err;
+        };
+        hasil;
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "tidak boleh bagi nol"),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+// ── Petakan (Map) ───────────────────────────────────
+
+#[test]
+fn test_petakan_dasar() {
+    let input = "misalkan arr = petakan([1, 2, 3], (x) => x * 2); arr;";
+    let result = test_eval(input);
+    match result {
+        Object::Array(arr) => {
+            assert_eq!(arr.len(), 3);
+            test_integer_object(&arr[0], 2);
+            test_integer_object(&arr[1], 4);
+            test_integer_object(&arr[2], 6);
+        }
+        _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_petakan_error_bukan_daftar() {
+    let input = r#"petakan("bukan array", (x) => x);"#;
+    let result = test_eval(input);
+    assert!(result.is_error(), "seharusnya error: {:?}", result);
+}
+
+// ── Saring (Filter) ────────────────────────────────
+
+#[test]
+fn test_saring_dasar() {
+    let input = "misalkan arr = saring([1, 2, 3, 4, 5, 6], (x) => x % 2 == 0); arr;";
+    let result = test_eval(input);
+    match result {
+        Object::Array(arr) => {
+            assert_eq!(arr.len(), 3);
+            test_integer_object(&arr[0], 2);
+            test_integer_object(&arr[1], 4);
+            test_integer_object(&arr[2], 6);
+        }
+        _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_saring_error_bukan_daftar() {
+    let input = "saring(42, (x) => x);";
+    let result = test_eval(input);
+    assert!(result.is_error(), "seharusnya error: {:?}", result);
+}
+
+#[test]
+fn test_petakan_saring_gabungan() {
+    // Ambil angka genap, lalu kalikan 10
+    let input = "
+        misalkan data = [1, 2, 3, 4, 5, 6];
+        misalkan genap = saring(data, (x) => x % 2 == 0);
+        misalkan hasil = petakan(genap, (x) => x * 10);
+        hasil;
+    ";
+    let result = test_eval(input);
+    match result {
+        Object::Array(arr) => {
+            assert_eq!(arr.len(), 3);
+            test_integer_object(&arr[0], 20);
+            test_integer_object(&arr[1], 40);
+            test_integer_object(&arr[2], 60);
+        }
+        _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
+    }
+}
+
+// ── Format ──────────────────────────────────────────
+
+#[test]
+fn test_format_dasar() {
+    let input = r#"format("Halo, {}! Usia: {}", "Dika", 20);"#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Halo, Dika! Usia: 20"),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_format_tanpa_placeholder() {
+    let input = r#"format("Tidak ada placeholder");"#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Tidak ada placeholder"),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_format_argumen_kurang() {
+    let input = r#"format("A {} B {}", 1);"#;
+    let result = test_eval(input);
+    assert!(result.is_error(), "seharusnya error: {:?}", result);
+}
+
+// ── dari_json & ke_json ─────────────────────────────
+
+#[test]
+fn test_dari_json_objek() {
+    let input = r#"
+        misalkan data = dari_json("{\"nama\": \"Dika\", \"umur\": 20}");
+        data["nama"];
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => assert_eq!(s, "Dika"),
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_dari_json_array() {
+    let input = r#"
+        misalkan data = dari_json("[1, 2, 3]");
+        panjang(data);
+    "#;
+    let result = test_eval(input);
+    test_integer_object(&result, 3);
+}
+
+#[test]
+fn test_ke_json_rapat() {
+    let input = r#"
+        misalkan data = {"nama": "Taji", "versi": 4};
+        ke_json(data);
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => {
+            assert!(s.contains("nama"));
+            assert!(s.contains("Taji"));
+            assert!(!s.contains('\n'), "mode rapat tidak boleh ada newline");
+        }
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_ke_json_rapi() {
+    let input = r#"
+        misalkan data = {"nama": "Taji"};
+        ke_json(data, benar);
+    "#;
+    let result = test_eval(input);
+    match result {
+        Object::Str(s) => {
+            assert!(s.contains('\n'), "mode rapi harus ada newline");
+            assert!(s.contains("nama"));
+        }
+        _ => panic!("diharapkan TEKS, diterima {:?}", result),
+    }
 }

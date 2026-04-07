@@ -1,0 +1,46 @@
+cetak("Mulai mencoba import file lain...");
+
+// Sistem Modul (memanggil file Modul Matematika)
+misalkan m = masukkan("contoh/modul/matematika.tj");
+
+cetak("");
+cetak("Isi dari modul M:");
+cetak("PI: " + m.PI);
+
+misalkan total = m.tambah(100, 25);
+cetak("Hasil M.tambah(100, 25) = " + total);
+
+misalkan fakto = m.faktorial(5);
+cetak("Hasil M.faktorial(5) = " + fakto);
+
+cetak("");
+cetak("=== UJI COBA FITUR v0.4.0 ===");
+
+// 1. JSON & Format
+misalkan json_teks = "{\"sekolah\": \"SMK\", \"siswa\": 1200}";
+misalkan data = dari_json(json_teks);
+cetak(format("Data dari JSON => Sekolah: {}, Jumlah Siswa: {}", data["sekolah"], data["siswa"]));
+
+// 2. Petakan & Saring
+misalkan deret = [1, 2, 3, 4, 5, 6];
+misalkan genap = saring(deret, (x) => x % 2 == 0);
+misalkan genap_kuadrat = petakan(genap, (x) => x * x);
+cetak("Genap dari [1..6] dikuadratkan: ");
+cetak(genap_kuadrat);
+
+// 3. Lemparkan & Coba-Tangkap
+misalkan sistem_kritis = fungsi(nilai) {
+    jika (nilai < 0) {
+        lemparkan format("Bahaya! Nilai tidak boleh negatif ({})", nilai);
+    };
+    kembalikan nilai * 10;
+};
+
+cetak("Mencoba fungsi sistem_kritis(-5)...");
+coba {
+    sistem_kritis(-5);
+} tangkap(err) {
+    cetak("[TERTANGKAP GALAT] -> " + err);
+};
+
+cetak("SUKSES SEMUA!");
