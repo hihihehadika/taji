@@ -11,7 +11,7 @@
 
 **Bahasa pemrograman dengan sintaks Bahasa Indonesia Baku, dibangun menggunakan Rust.**
 
-Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas dan mendidik. Proyek ini dibangun dari nol tanpa menggunakan _parser generator_, namun dilengkapi dengan fitur-fitur pendukung seperti penanganan galat, sistem modul, dan manipulasi JSON terbuka.
+Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas dan fungsional. Proyek ini dibangun dari nol tanpa menggunakan _parser generator_, namun dilengkapi dengan berbagai fitur esensial seperti penanganan galat, sistem modul, dan manipulasi JSON terbuka.
 
 ---
 
@@ -146,16 +146,24 @@ cetak("Nilai Lingkaran: " + matematika.PI);
 ---
 
 ## Struktur Mesin Evaluasi
-Proyek ini diukur dari *software architecture* kelas tinggi yang memisahkan area menjadi 3 bagian inti:
+Arsitektur interpreter proyek ini didesain secara modular menjadi 3 tahapan inti:
 1. `Membaca` ➔ **Lexer** mengubah Teks kode mentah menjadi Token (Tanda Baca).
 2. `Memahamkan` ➔ **Parser** (mekanisme Pratt Parser) merangkai token jadi Pohon Abstrak (*AST / Abstract Syntax Tree*).
 3. `Mengeksekusi` ➔ **Evaluator** berjalan di atas AST untuk mendikte aksi ke sistem operasi.
 
 ---
 
+## Riwayat Rilis Khusus
+- **v0.4.0 (7 April 2026)**: Integrasi tipe data JSON eksternal, mekanisme galat `coba / tangkap / lemparkan`, dan fungsional `petakan`, `saring`.
+- **v0.3.0 (5 April 2026)**: Penanganan galat awal (primitif), fungsi anonim (*arrow function* `=>`), dan sistem komputasi I/O berkas.
+- **v0.2.0 (4 April 2026)**: Penambahan kendali alur (`untuk`, `selama`) dan sistem muat modul antar-berkas (`masukkan`).
+- **v0.1.0 (4 April 2026)**: Inisialisasi proyek dan kerangka dasar (*Lexer*, *Pratt Parser*, *Evaluator*) serta REPL interaktif di terminal.
+
+---
+
 ## Pengujian Unit (Unit Testing)
-Bukan interpreter stabil namanya bila bisa menembus galat aneh. Seluruh fungsi dijaga mati-matian oleh `cargo test`.
-Ada **107+ Tests Murni** yang siap menangkal *bug-regression* setiap kali kamu mengetik fitur baru!
+Proyek ini dilengkapi dengan pengujian unit otomatis untuk memastikan stabilitas setiap komponen.  
+Terdapat lebih dari **107 pengujian (`cargo test`)** yang selalu memvalidasi fungsi mesin pada setiap perubahan fitur.
 ```bash
 cargo test
 ```
