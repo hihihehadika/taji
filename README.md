@@ -1,10 +1,10 @@
-# Taji (v0.4.0)
+# Taji (v0.5.0)
 
 <p align="center">
   <img src="https://img.shields.io/badge/bahasa-Rust-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/versi-0.4.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/versi-0.5.0-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/lisensi-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/tests-107%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-119%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
   <img src="https://img.shields.io/badge/dependensi-Minimal-purple?style=for-the-badge" alt="Minimal Dependencies">
   <img src="https://img.shields.io/badge/sintaks-Bahasa%20Indonesia-red?style=for-the-badge" alt="Bahasa Indonesia">
 </p>
@@ -15,12 +15,13 @@ Taji adalah interpreter bahasa pemrograman yang dirancang untuk menjadi ringkas 
 
 ---
 
-## Fitur Utama v0.4.0
+## Fitur Utama v0.5.0
 
 | Fitur | Spesifikasi Khusus |
 | --- | --- |
 | **Sintaks Bahasa Indonesia** | `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut`, `coba`, `tangkap`, `lemparkan`. |
 | **Pemrograman Fungsional** | Dilengkapi fitur Array manipulation ala JS: `petakan (map)`, `saring (filter)`, `dorong (push)`. |
+| **Pustaka Standar Komprehensif** | Jaringan HTTP (`ambil_web`), Manipulasi Teks super lengkap (`potong`, `ganti`, `berisi`), utilitas Waktu native, dan Matematika acak bawaan |
 | **Sistem Tipe Dinamis** | Angka Bulat, Desimal (*float*), Teks, Boolean, Daftar (*array*), dan Kamus (*hash map* / *dictionary*). |
 | **Ekosistem JSON Bawaan** | Ubah Kamus jadi JSON dan sebaliknya (`ke_json` & `dari_json`) secara natif untuk kebutuhan *Web-Service* / API. |
 | **Penanganan Galat Modern** | Punya sistem `coba`, `tangkap(err)`, dan pemanggilan `lemparkan format("galat: {}", x);`. |
@@ -135,13 +136,16 @@ cetak("Nilai Lingkaran: " + matematika.PI);
 | Kategori | Nama Fungsi & Contoh | Tipe Kembalian |
 | --- | --- | --- |
 | **I / O** | `cetak(nilai)`, `tanya("nama: ")` | `-`, `Teks` |
-| **Konversi**| `teks(5) -> "5"`, `angka("3.1) -> 3.1` | `Teks`, `Desimal` |
+| **Konversi**| `teks(5) -> "5"`, `angka("3.1") -> 3.1` | `Teks`, `Desimal` |
 | **Format** | `format("halo {}", nama)` | `Teks` |
 | **Array** | `panjang(A)`, `pertama(A)`, `terakhir(A)`, `dorong(A, 5)` | `Campuran` |
-| **String** | `pisah("A B", " ")`, `gabung(A, "-")` | `Array`, `Teks` |
-| **Berkas** | `baca_berkas(X)`, `tulis_berkas(X, Y)` | `Teks`, `-` |
-| **Logika** | `petakan(val, func)`, `saring(val, func)` | `Array` |
-| **JSON** | `dari_json(str)`, `ke_json(obj)` | `Objek`, `Teks` |
+| **String** | `pisah(A, B)`, `gabung(A, "-")`, `potong(A, 0, 5)`, `ganti(A, "L", "B")`, `huruf_besar(A)`, `berisi(A, "x")` | `Array`, `Teks`, `Boolean` |
+| **Jaringan**| `ambil_web("http...")` | `Teks` |
+| **Sistem**  | `waktu()`, `jeda(100)` | `Bulat (i64)`, `-` |
+| **Math**    | `acak(1, 10)` | `Bulat` |
+| **Berkas**  | `baca_berkas(X)`, `tulis_berkas(X, Y)` | `Teks`, `-` |
+| **Logika**  | `petakan(val, func)`, `saring(val, func)` | `Array` |
+| **JSON**    | `dari_json(str)`, `ke_json(obj)` | `Objek`, `Teks` |
 
 ---
 
@@ -154,6 +158,7 @@ Arsitektur interpreter proyek ini didesain secara modular menjadi 3 tahapan inti
 ---
 
 ## Riwayat Rilis Khusus
+- **v0.5.0 (9 April 2026)**: Pustaka Standar ekstensif (Jaringan Web HTTP, fungsi waktu & generator acak primitif, dan manipulasi teks leksikal lengkap).
 - **v0.4.0 (7 April 2026)**: Integrasi tipe data JSON eksternal, mekanisme galat `coba / tangkap / lemparkan`, dan fungsional `petakan`, `saring`.
 - **v0.3.0 (5 April 2026)**: Penanganan galat awal (primitif), fungsi anonim (*arrow function* `=>`), dan sistem komputasi I/O berkas.
 - **v0.2.0 (4 April 2026)**: Penambahan kendali alur (`untuk`, `selama`) dan sistem muat modul antar-berkas (`masukkan`).
@@ -163,7 +168,7 @@ Arsitektur interpreter proyek ini didesain secara modular menjadi 3 tahapan inti
 
 ## Pengujian Unit (Unit Testing)
 Proyek ini dilengkapi dengan pengujian unit otomatis untuk memastikan stabilitas setiap komponen.  
-Terdapat lebih dari **107 pengujian (`cargo test`)** yang selalu memvalidasi fungsi mesin pada setiap perubahan fitur.
+Terdapat lebih dari **121 pengujian** (`cargo test`) yang selalu memvalidasi fungsi mesin pada setiap perubahan fitur.
 ```bash
 cargo test
 ```

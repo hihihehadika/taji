@@ -1,0 +1,67 @@
+// Contoh penggunaan Pustaka Standar Taji v0.5.0
+// Jalankan: taji pustaka_standar.tj
+
+// ─── Manipulasi Teks ─────────────────────────────────────
+
+misalkan kalimat = "Bahasa Pemrograman Taji v0.5.0";
+
+cetak(huruf_besar(kalimat));
+cetak(huruf_kecil(kalimat));
+cetak(berisi(kalimat, "Taji"));
+cetak(ganti(kalimat, "v0.5.0", "v1.0.0"));
+cetak(potong(kalimat, 0, 6));
+
+misalkan kata = pisah(kalimat, " ");
+cetak(kata);
+cetak(gabung(kata, "-"));
+
+// ─── Konversi Tipe ───────────────────────────────────────
+
+misalkan angka_str = "42";
+misalkan nilai = angka(angka_str);
+cetak(nilai + 8);
+
+misalkan bulat = 3.99;
+cetak(teks(bulat));
+
+// ─── Waktu & Matematika ──────────────────────────────────
+
+misalkan t_mulai = waktu();
+
+// Simulasi operasi
+misalkan total = 0;
+untuk (misalkan i = 0; i < 100000; i += 1) {
+    total += i;
+};
+
+misalkan t_selesai = waktu();
+cetak(format("Waktu eksekusi: {} ms", t_selesai - t_mulai));
+cetak(format("Hasil total: {}", total));
+
+// Angka acak
+cetak(format("Dadu: {}", acak(1, 6)));
+cetak(format("Kartu: {}", acak(1, 52)));
+
+// Jeda singkat
+cetak("Jeda 100ms...");
+jeda(100);
+cetak("Selesai!");
+
+// ─── Penanganan Error ─────────────────────────────────────
+
+coba {
+    misalkan x = angka("bukan angka");
+} tangkap (err) {
+    cetak(format("Tertangkap: {}", err));
+};
+
+// ─── Jaringan HTTP (ambil_web) ────────────────────────────
+
+cetak("Mencoba mengambil data dari web...");
+coba {
+    misalkan respons = ambil_web("https://httpbin.org/get");
+    cetak("Berhasil mengambil data!");
+    cetak(potong(respons, 0, 50) + "...");
+} tangkap (err) {
+    cetak("Gagal mengambil web (Mungkin tidak ada internet): " + err);
+};

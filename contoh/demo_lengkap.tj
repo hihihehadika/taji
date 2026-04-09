@@ -43,4 +43,35 @@ coba {
     cetak("[TERTANGKAP GALAT] -> " + err);
 };
 
+cetak("");
+cetak("=== UJI COBA FITUR v0.5.0 (Pustaka Standar) ===");
+
+// Waktu & Jeda
+misalkan t_mulai = waktu();
+
+cetak("Membuat angka acak: " + acak(1, 100));
+cetak("Menunggu 200 ms...");
+jeda(200);
+
+// Manipulasi Teks Kompleks
+misalkan bahasa = "Taji adalah bahasa fungsional";
+bahasa = ganti(bahasa, "fungsional", "kuat!");
+cetak(huruf_besar(bahasa));
+cetak("Apakah berisi Taji?: " + berisi(bahasa, "Taji"));
+
+// Jaringan
+cetak("Mengirim request HTTP GET...");
+coba {
+    misalkan header = {"User-Agent": "Taji/0.5.0"};
+    misalkan web = ambil_web("https://httpbin.org/get", header);
+    cetak("Berhasil! Karakter awal respons: " + potong(web, 0, 40) + "...");
+} tangkap (err) {
+    cetak("Internet bermasalah atau timeout: " + err);
+};
+
+misalkan t_selesai = waktu();
+cetak(format("Total eksekusi v0.5.0: {} milidetik", t_selesai - t_mulai));
+
+
+cetak("");
 cetak("SUKSES SEMUA!");

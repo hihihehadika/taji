@@ -1129,3 +1129,178 @@ fn test_ke_json_rapi() {
         _ => panic!("diharapkan TEKS, diterima {:?}", result),
     }
 }
+
+// ═══════════════════════════════════════════════════════════
+//  Pengujian Pustaka Standar (v0.5.0)
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_builtin_potong() {
+    let tests: Vec<(&str, &str)> = vec![
+        (r#"potong("halo dunia", 0, 4)"#, "halo"),
+        (r#"potong("Taji v0.5", 5, 9)"#, "v0.5"),
+        (r#"potong("abcdef", 2, 5)"#, "cde"),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        match result {
+            Object::Str(s) => assert_eq!(s, expected, "input: {}", input),
+            _ => panic!("diharapkan TEKS '{}', diterima {:?}", expected, result),
+        }
+    }
+}
+
+#[test]
+fn test_builtin_potong_error_batas() {
+    let result = test_eval(r#"potong("abc", 5, 10)"#);
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("indeks di luar batas"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_ganti() {
+    let tests: Vec<(&str, &str)> = vec![
+        (r#"ganti("halo dunia", "dunia", "taji")"#, "halo taji"),
+        (r#"ganti("aaa", "a", "b")"#, "bbb"),
+        (r#"ganti("tidak ada", "xyz", "abc")"#, "tidak ada"),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        match result {
+            Object::Str(s) => assert_eq!(s, expected, "input: {}", input),
+            _ => panic!("diharapkan TEKS '{}', diterima {:?}", expected, result),
+        }
+    }
+}
+
+#[test]
+fn test_builtin_huruf_besar() {
+    let result = test_eval(r#"huruf_besar("halo dunia")"#);
+    match result {
+        Object::Str(s) => assert_eq!(s, "HALO DUNIA"),
+        _ => panic!("diharapkan TEKS 'HALO DUNIA', diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_huruf_kecil() {
+    let result = test_eval(r#"huruf_kecil("HALO DUNIA")"#);
+    match result {
+        Object::Str(s) => assert_eq!(s, "halo dunia"),
+        _ => panic!("diharapkan TEKS 'halo dunia', diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_huruf_error_tipe() {
+    let result = test_eval("huruf_besar(42)");
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("harus TEKS"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_berisi() {
+    let tests = vec![
+        (r#"berisi("halo dunia", "dunia")"#, true),
+        (r#"berisi("halo dunia", "taji")"#, false),
+        (r#"berisi("", "")"#, true),
+        (r#"berisi("abc", "ab")"#, true),
+    ];
+
+    for (input, expected) in tests {
+        let result = test_eval(input);
+        test_boolean_object(&result, expected);
+    }
+}
+
+#[test]
+fn test_builtin_jeda() {
+    let result = test_eval("jeda(10)");
+    assert!(
+        matches!(result, Object::Null),
+        "diharapkan kosong, diterima {:?}", result
+    );
+}
+
+#[test]
+fn test_builtin_jeda_negatif_error() {
+    let result = test_eval("jeda(-1)");
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("tidak boleh negatif"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_acak_rentang() {
+    for _ in 0..20 {
+        let result = test_eval("acak(1, 10)");
+        match result {
+            Object::Integer(val) => {
+                assert!(val >= 1 && val <= 10, "nilai acak {} di luar rentang [1, 10]", val);
+            }
+            _ => panic!("diharapkan BILANGAN, diterima {:?}", result),
+        }
+    }
+}
+
+#[test]
+fn test_builtin_acak_titik_tunggal() {
+    let result = test_eval("acak(7, 7)");
+    test_integer_object(&result, 7);
+}
+
+#[test]
+fn test_builtin_acak_error_min_lebih_besar() {
+    let result = test_eval("acak(10, 1)");
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("tidak valid"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Pustaka Standar Jaringan (v0.5.0)
+// ═══════════════════════════════════════════════════════════
+
+#[test]
+fn test_builtin_ambil_web_error_url() {
+    let result = test_eval(r#"ambil_web("bukan_url_valid")"#);
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("gagal mengambil URL"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}
+
+#[test]
+fn test_builtin_ambil_web_argumen_salah() {
+    let result = test_eval("ambil_web()");
+    match result {
+        Object::Error(msg) => assert!(
+            msg.contains("jumlah argumen salah"),
+            "pesan error tidak sesuai: {}", msg
+        ),
+        _ => panic!("diharapkan Error, diterima {:?}", result),
+    }
+}

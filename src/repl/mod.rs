@@ -14,7 +14,7 @@ const PROMPT: &str = "taji >> ";
 const BANNER: &str = r#"
   ======================================================
         TAJI - Bahasa Pemrograman Indonesia         
-        Versi 0.4.0                                   
+        Versi 0.5.0                                   
         Ketik 'keluar' untuk berhenti.                
   ======================================================
 "#;

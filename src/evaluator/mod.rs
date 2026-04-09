@@ -11,7 +11,8 @@ use crate::object::*;
 use crate::parser::Parser;
 use std::collections::HashMap;
 use std::io::{self, Write};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // ═══════════════════════════════════════════════════════════
 //  Konstanta
@@ -814,6 +815,14 @@ fn get_builtin(name: &str) -> Option<Object> {
         "format" => Some(Object::Bawaan(builtin_format)),
         "dari_json" => Some(Object::Bawaan(builtin_dari_json)),
         "ke_json" => Some(Object::Bawaan(builtin_ke_json)),
+        "ambil_web" => Some(Object::Bawaan(builtin_ambil_web)),
+        "potong" => Some(Object::Bawaan(builtin_potong)),
+        "ganti" => Some(Object::Bawaan(builtin_ganti)),
+        "huruf_besar" => Some(Object::Bawaan(builtin_huruf_besar)),
+        "huruf_kecil" => Some(Object::Bawaan(builtin_huruf_kecil)),
+        "berisi" => Some(Object::Bawaan(builtin_berisi)),
+        "jeda" => Some(Object::Bawaan(builtin_jeda)),
+        "acak" => Some(Object::Bawaan(builtin_acak)),
         _ => None,
     }
 }
@@ -1407,6 +1416,322 @@ fn object_to_json_value(obj: &Object) -> Option<serde_json::Value> {
         }
         _ => None,
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Pustaka Standar v0.5.0 - Jaringan
+// ═══════════════════════════════════════════════════════════
+
+/// `ambil_web(url)` atau `ambil_web(url, kamus_header)` — HTTP GET sinkronus.
+/// Mengembalikan body respons sebagai teks. Melempar Error jika gagal.
+fn builtin_ambil_web(args: Vec<Object>) -> Object {
+    if args.is_empty() || args.len() > 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'ambil_web': diharapkan 1 atau 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let url = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'ambil_web' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let mut request = ureq::get(&url);
+
+    // Terapkan header opsional dari argumen kedua (Kamus)
+    if args.len() == 2 {
+        match &args[1] {
+            Object::Hash(pairs) => {
+                for (k, v) in pairs {
+                    let key_str = match k {
+                        KunciKamus::Str(s) => s.clone(),
+                        _ => continue,
+                    };
+                    let val_str = match v {
+                        Object::Str(s) => s.clone(),
+                        _ => continue,
+                    };
+                    request = request.header(&key_str, &val_str);
+                }
+            }
+            _ => {
+                return Object::Error(format!(
+                    "argumen kedua untuk 'ambil_web' harus KAMUS, diterima {}",
+                    args[1].type_name()
+                ));
+            }
+        }
+    }
+
+    match request.call() {
+        Ok(response) => {
+            match response.into_body().read_to_string() {
+                Ok(body) => Object::Str(body),
+                Err(e) => Object::Error(format!("gagal membaca respons: {}", e)),
+            }
+        }
+        Err(e) => Object::Error(format!("gagal mengambil URL '{}': {}", url, e)),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Pustaka Standar v0.5.0 - Manipulasi Teks
+// ═══════════════════════════════════════════════════════════
+
+/// `potong(teks, awal, akhir)` — Mengambil substring berdasarkan indeks karakter.
+/// Indeks berbasis 0. `akhir` eksklusif.
+fn builtin_potong(args: Vec<Object>) -> Object {
+    if args.len() != 3 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'potong': diharapkan 3, diterima {}",
+            args.len()
+        ));
+    }
+
+    let teks = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'potong' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let awal = match &args[1] {
+        Object::Integer(i) => *i,
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'potong' harus BILANGAN, diterima {}",
+                args[1].type_name()
+            ));
+        }
+    };
+
+    let akhir = match &args[2] {
+        Object::Integer(i) => *i,
+        _ => {
+            return Object::Error(format!(
+                "argumen ketiga untuk 'potong' harus BILANGAN, diterima {}",
+                args[2].type_name()
+            ));
+        }
+    };
+
+    let chars: Vec<char> = teks.chars().collect();
+    let len = chars.len() as i64;
+
+    if awal < 0 || akhir < 0 || awal > len || akhir > len || awal > akhir {
+        return Object::Error(format!(
+            "indeks di luar batas untuk 'potong': awal={}, akhir={}, panjang={}",
+            awal, akhir, len
+        ));
+    }
+
+    let hasil: String = chars[awal as usize..akhir as usize].iter().collect();
+    Object::Str(hasil)
+}
+
+/// `ganti(teks, target, pengganti)` — Mengganti semua kemunculan `target` dengan `pengganti`.
+fn builtin_ganti(args: Vec<Object>) -> Object {
+    if args.len() != 3 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'ganti': diharapkan 3, diterima {}",
+            args.len()
+        ));
+    }
+
+    let teks = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'ganti' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let target = match &args[1] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'ganti' harus TEKS, diterima {}",
+                args[1].type_name()
+            ));
+        }
+    };
+
+    let pengganti = match &args[2] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen ketiga untuk 'ganti' harus TEKS, diterima {}",
+                args[2].type_name()
+            ));
+        }
+    };
+
+    Object::Str(teks.replace(&target, &pengganti))
+}
+
+/// `huruf_besar(teks)` — Mengubah semua karakter ke huruf kapital.
+fn builtin_huruf_besar(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'huruf_besar': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    match &args[0] {
+        Object::Str(s) => Object::Str(s.to_uppercase()),
+        _ => Object::Error(format!(
+            "argumen untuk 'huruf_besar' harus TEKS, diterima {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// `huruf_kecil(teks)` — Mengubah semua karakter ke huruf kecil.
+fn builtin_huruf_kecil(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'huruf_kecil': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    match &args[0] {
+        Object::Str(s) => Object::Str(s.to_lowercase()),
+        _ => Object::Error(format!(
+            "argumen untuk 'huruf_kecil' harus TEKS, diterima {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// `berisi(teks, pencarian)` — Memeriksa apakah teks mengandung substring pencarian.
+/// Mengembalikan Boolean.
+fn builtin_berisi(args: Vec<Object>) -> Object {
+    if args.len() != 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'berisi': diharapkan 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let teks = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'berisi' harus TEKS, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let pencarian = match &args[1] {
+        Object::Str(s) => s.clone(),
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'berisi' harus TEKS, diterima {}",
+                args[1].type_name()
+            ));
+        }
+    };
+
+    native_bool_to_object(teks.contains(pencarian.as_str()))
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Pustaka Standar v0.5.0 - Waktu & Matematika
+// ═══════════════════════════════════════════════════════════
+
+/// `jeda(milidetik)` — Menghentikan eksekusi selama N milidetik.
+fn builtin_jeda(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'jeda': diharapkan 1, diterima {}",
+            args.len()
+        ));
+    }
+
+    let ms = match &args[0] {
+        Object::Integer(i) => *i,
+        _ => {
+            return Object::Error(format!(
+                "argumen untuk 'jeda' harus BILANGAN (milidetik), diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    if ms < 0 {
+        return Object::Error("argumen untuk 'jeda' tidak boleh negatif".to_string());
+    }
+
+    thread::sleep(Duration::from_millis(ms as u64));
+    NULL
+}
+
+/// `acak(min, max)` — Menghasilkan bilangan bulat acak antara min dan max (inklusif).
+/// Menggunakan algoritma Linear Congruential Generator (LCG) dengan seed dari nanodetik OS.
+fn builtin_acak(args: Vec<Object>) -> Object {
+    if args.len() != 2 {
+        return Object::Error(format!(
+            "jumlah argumen salah untuk 'acak': diharapkan 2, diterima {}",
+            args.len()
+        ));
+    }
+
+    let min = match &args[0] {
+        Object::Integer(i) => *i,
+        _ => {
+            return Object::Error(format!(
+                "argumen pertama untuk 'acak' harus BILANGAN, diterima {}",
+                args[0].type_name()
+            ));
+        }
+    };
+
+    let max = match &args[1] {
+        Object::Integer(i) => *i,
+        _ => {
+            return Object::Error(format!(
+                "argumen kedua untuk 'acak' harus BILANGAN, diterima {}",
+                args[1].type_name()
+            ));
+        }
+    };
+
+    if min > max {
+        return Object::Error(format!(
+            "argumen untuk 'acak' tidak valid: min ({}) tidak boleh lebih besar dari max ({})",
+            min, max
+        ));
+    }
+
+    // LCG seed dari nanodetik sistem operasi
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(12345);
+
+    // Konstanta LCG (Knuth): a=6364136223846793005, c=1442695040888963407, m=2^64
+    let lcg = seed
+        .wrapping_mul(6_364_136_223_846_793_005)
+        .wrapping_add(1_442_695_040_888_963_407);
+
+    let rentang = (max - min + 1) as u64;
+    let hasil = min + (lcg % rentang) as i64;
+
+    Object::Integer(hasil)
 }
 
 // ═══════════════════════════════════════════════════════════
