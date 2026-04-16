@@ -1,4 +1,6 @@
 /target
 **/*.rs.bk
 *.pdb
-Cargo.lock
+.vscode/
+*.profraw
+.DS_Store
