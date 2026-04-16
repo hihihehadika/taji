@@ -8,10 +8,10 @@ pub enum TokenType {
     Eof,
 
     // ── Identifiers + Literals ──────────────────────────
-    Ident,    // nama variabel, nama fungsi, dsb.
-    Int,      // angka bulat: 0, 42, 1000
-    Float,    // angka desimal: 3.14
-    Str,      // teks literal: "halo dunia"
+    Ident, // nama variabel, nama fungsi, dsb.
+    Int,   // angka bulat: 0, 42, 1000
+    Float, // angka desimal: 3.14
+    Str,   // teks literal: "halo dunia"
 
     // ── Operators ───────────────────────────────────────
     Assign,   // =
@@ -23,18 +23,18 @@ pub enum TokenType {
     Modulo,   // %
 
     // Compound assignment operators
-    PlusEq,   // +=
-    MinusEq,  // -=
-    MulEq,    // *=
-    DivEq,    // /=
+    PlusEq,  // +=
+    MinusEq, // -=
+    MulEq,   // *=
+    DivEq,   // /=
 
-    Lt,       // <
-    Gt,       // >
-    LtEq,    // <=
-    GtEq,    // >=
-    Eq,       // ==
-    NotEq,    // !=
-    Arrow,    // =>
+    Lt,    // <
+    Gt,    // >
+    LtEq,  // <=
+    GtEq,  // >=
+    Eq,    // ==
+    NotEq, // !=
+    Arrow, // =>
 
     // ── Delimiters ──────────────────────────────────────
     Comma,     // ,
@@ -68,6 +68,7 @@ pub enum TokenType {
     Coba,       // try
     Tangkap,    // catch
     Lemparkan,  // throw
+    Kosong,     // null
 }
 
 /// Representasi sebuah token hasil analisis leksikal.
@@ -87,25 +88,26 @@ impl Token {
     /// bahasa Indonesia baku milik Taji, atau sekadar nama variabel biasa.
     pub fn lookup_ident(ident: &str) -> TokenType {
         match ident {
-            "fungsi"     => TokenType::Fungsi,
-            "misalkan"   => TokenType::Misalkan,
-            "benar"      => TokenType::Benar,
-            "salah"      => TokenType::Salah,
-            "jika"       => TokenType::Jika,
-            "lainnya"    => TokenType::Lainnya,
+            "fungsi" => TokenType::Fungsi,
+            "misalkan" => TokenType::Misalkan,
+            "benar" => TokenType::Benar,
+            "salah" => TokenType::Salah,
+            "jika" => TokenType::Jika,
+            "lainnya" => TokenType::Lainnya,
             "kembalikan" => TokenType::Kembalikan,
-            "selama"     => TokenType::Selama,
-            "untuk"      => TokenType::Untuk,
-            "berhenti"   => TokenType::Berhenti,
-            "lanjut"     => TokenType::Lanjut,
-            "masukkan"   => TokenType::Masukkan,
-            "dan"        => TokenType::Dan,
-            "atau"       => TokenType::Atau,
-            "bukan"      => TokenType::Bukan,
-            "coba"       => TokenType::Coba,
-            "tangkap"    => TokenType::Tangkap,
-            "lemparkan"  => TokenType::Lemparkan,
-            _            => TokenType::Ident,
+            "selama" => TokenType::Selama,
+            "untuk" => TokenType::Untuk,
+            "berhenti" => TokenType::Berhenti,
+            "lanjut" => TokenType::Lanjut,
+            "masukkan" => TokenType::Masukkan,
+            "dan" => TokenType::Dan,
+            "atau" => TokenType::Atau,
+            "bukan" => TokenType::Bukan,
+            "coba" => TokenType::Coba,
+            "tangkap" => TokenType::Tangkap,
+            "lemparkan" => TokenType::Lemparkan,
+            "kosong" => TokenType::Kosong,
+            _ => TokenType::Ident,
         }
     }
 }

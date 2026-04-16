@@ -305,6 +305,7 @@ impl Parser {
             TokenType::Lbrace => self.parse_hash_literal(),
             TokenType::Masukkan => self.parse_masukkan_expression(),
             TokenType::Coba => self.parse_coba_expression(),
+            TokenType::Kosong => Some(Expression::Null),
             _ => {
                 self.no_prefix_parse_error(&self.cur_token.type_.clone());
                 None
@@ -553,25 +554,15 @@ impl Parser {
         }))
     }
 
-    /// Parsing penugasan: `x = 5`, `x += 3`, `x -= 1`
+    /// Parsing penugasan: `x = 5`, `arr[0] = 5`, `obj.kunci = 10`
     fn parse_penugasan_expression(&mut self, left: Expression) -> Option<Expression> {
         let operator = self.cur_token.literal.clone();
-
-        // Sisi kiri harus berupa pengenal (nama variabel)
-        let name = match left {
-            Expression::Pengenal(ident) => ident,
-            _ => {
-                self.errors
-                    .push("Kesalahan: sisi kiri penugasan harus berupa nama variabel".to_string());
-                return None;
-            }
-        };
 
         self.next_token();
         let value = self.parse_expression(Precedence::Lowest)?;
 
         Some(Expression::Penugasan(PenugasanExpression {
-            name,
+            left: Box::new(left),
             operator,
             value: Box::new(value),
         }))

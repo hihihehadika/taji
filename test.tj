@@ -1,0 +1,1 @@
+﻿misalkan arr = [1]; arr[0] = 2; cetak(arr);

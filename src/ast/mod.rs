@@ -128,6 +128,7 @@ pub enum Expression {
     FungsiPanah(FungsiPanahLiteral),
     /// Penanganan galat: `coba { ... } tangkap (err) { ... }`
     Coba(CobaExpression),
+    Null,
 }
 
 impl fmt::Display for Expression {
@@ -153,10 +154,7 @@ impl fmt::Display for Expression {
             }
             Expression::Indeks(expr) => write!(f, "{}", expr),
             Expression::HashLiteral(pairs) => {
-                let ps: Vec<String> = pairs
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect();
+                let ps: Vec<String> = pairs.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
                 write!(f, "{{{}}}", ps.join(", "))
             }
             Expression::Penugasan(expr) => write!(f, "{}", expr),
@@ -164,6 +162,7 @@ impl fmt::Display for Expression {
             Expression::Masukkan(expr) => write!(f, "{}", expr),
             Expression::FungsiPanah(expr) => write!(f, "{}", expr),
             Expression::Coba(expr) => write!(f, "{}", expr),
+            Expression::Null => write!(f, "kosong"),
         }
     }
 }
@@ -317,17 +316,17 @@ impl fmt::Display for IndeksExpression {
     }
 }
 
-/// Ekspresi penugasan: `x = 5` atau `x += 3`
+/// Ekspresi penugasan: `x = 5`, `arr[0] = 5`, atau `x += 3`
 #[derive(Debug, Clone)]
 pub struct PenugasanExpression {
-    pub name: Pengenal,
+    pub left: Box<Expression>,
     pub operator: String, // "=", "+=", "-=", "*=", "/="
     pub value: Box<Expression>,
 }
 
 impl fmt::Display for PenugasanExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.name, self.operator, self.value)
+        write!(f, "{} {} {}", self.left, self.operator, self.value)
     }
 }
 

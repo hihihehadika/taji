@@ -1,9 +1,7 @@
 //! Modul Objek untuk bahasa Taji.
-//!
-//! Mendefinisikan semua tipe data yang dihasilkan oleh evaluator,
-//! termasuk sistem lingkungan (scope chain) untuk variabel.
 
 use crate::ast::{BlokPernyataan, Pengenal};
+use crate::code::Bytecode;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
@@ -23,12 +21,13 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Error(String),
     Fungsi(ObjekFungsi),
+    FungsiVM(ObjekFungsiTerkompilasi),
+    Closure(ObjekClosure),
+    Upvalue(Rc<RefCell<ObjekUpvalue>>),
     Bawaan(FungsiBawaan),
-    Array(Vec<Object>),
-    Hash(HashMap<KunciKamus, Object>),
-    /// Sinyal untuk `berhenti` (break) dalam loop.
+    Array(Rc<RefCell<Vec<Object>>>),
+    Hash(Rc<RefCell<HashMap<KunciKamus, Object>>>),
     Break,
-    /// Sinyal untuk `lanjut` (continue) dalam loop.
     Continue,
 }
 
@@ -42,7 +41,8 @@ impl Object {
             Object::Null => "KOSONG",
             Object::ReturnValue(_) => "NILAI_KEMBALI",
             Object::Error(_) => "KESALAHAN",
-            Object::Fungsi(_) => "FUNGSI",
+            Object::Fungsi(_) | Object::Closure(_) | Object::FungsiVM(_) => "FUNGSI",
+            Object::Upvalue(_) => "UPVALUE",
             Object::Bawaan(_) => "FUNGSI_BAWAAN",
             Object::Array(_) => "DAFTAR",
             Object::Hash(_) => "KAMUS",
@@ -70,32 +70,27 @@ impl fmt::Display for Object {
         match self {
             Object::Integer(val) => write!(f, "{}", val),
             Object::Float(val) => {
-                // Tampilkan desimal dengan rapi (hilangkan trailing zeros)
                 if val.fract() == 0.0 {
                     write!(f, "{:.1}", val)
                 } else {
                     write!(f, "{}", val)
                 }
             }
-            Object::Boolean(val) => {
-                write!(f, "{}", if *val { "benar" } else { "salah" })
-            }
+            Object::Boolean(val) => write!(f, "{}", if *val { "benar" } else { "salah" }),
             Object::Str(val) => write!(f, "{}", val),
             Object::Null => write!(f, "kosong"),
             Object::ReturnValue(val) => write!(f, "{}", val),
             Object::Error(msg) => write!(f, "KESALAHAN: {}", msg),
-            Object::Fungsi(func) => {
-                let params: Vec<String> =
-                    func.parameters.iter().map(|p| p.value.clone()).collect();
-                write!(f, "fungsi({}) {{ ... }}", params.join(", "))
-            }
+            Object::Fungsi(_) | Object::FungsiVM(_) | Object::Closure(_) => write!(f, "<fungsi>"),
+            Object::Upvalue(_) => write!(f, "<upvalue>"),
             Object::Bawaan(_) => write!(f, "fungsi bawaan"),
             Object::Array(elements) => {
-                let elems: Vec<String> = elements.iter().map(|e| e.to_string()).collect();
+                let elems: Vec<String> = elements.borrow().iter().map(|e| e.to_string()).collect();
                 write!(f, "[{}]", elems.join(", "))
             }
             Object::Hash(pairs) => {
                 let ps: Vec<String> = pairs
+                    .borrow()
                     .iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect();
@@ -108,8 +103,30 @@ impl fmt::Display for Object {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Objek Fungsi
+//  Closures & Upvalues
 // ═══════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone)]
+pub struct ObjekClosure {
+    pub fungsi: ObjekFungsiTerkompilasi,
+    pub upvalues: Vec<Rc<RefCell<ObjekUpvalue>>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ObjekUpvalue {
+    /// Masih di stack: menyimpan indeks ke stack VM.
+    Open(usize),
+    /// Sudah di heap: menyimpan nilai obyek secara mandiri.
+    Closed(Object),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjekFungsiTerkompilasi {
+    pub instruksi: Bytecode,
+    pub jumlah_parameter: usize,
+    pub jumlah_lokal: usize,
+    pub nama: Option<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct ObjekFungsi {
@@ -118,15 +135,7 @@ pub struct ObjekFungsi {
     pub env: Lingkungan,
 }
 
-// ═══════════════════════════════════════════════════════════
-//  Fungsi Bawaan
-// ═══════════════════════════════════════════════════════════
-
 pub type FungsiBawaan = fn(Vec<Object>) -> Object;
-
-// ═══════════════════════════════════════════════════════════
-//  Kunci Kamus
-// ═══════════════════════════════════════════════════════════
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum KunciKamus {
@@ -139,16 +148,14 @@ impl fmt::Display for KunciKamus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             KunciKamus::Integer(val) => write!(f, "{}", val),
-            KunciKamus::Boolean(val) => {
-                write!(f, "{}", if *val { "benar" } else { "salah" })
-            }
+            KunciKamus::Boolean(val) => write!(f, "{}", if *val { "benar" } else { "salah" }),
             KunciKamus::Str(val) => write!(f, "\"{}\"", val),
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-//  Lingkungan (Scope Chain)
+//  Lingkungan (Scope Chain - Bridge untuk Evaluator Lama)
 // ═══════════════════════════════════════════════════════════
 
 #[derive(Debug, Clone)]
@@ -165,7 +172,6 @@ impl Lingkungan {
         }
     }
 
-    /// Membuat lingkungan baru yang mewarisi lingkungan luar (enclosed scope).
     pub fn new_enclosed(outer: Lingkungan) -> Self {
         Lingkungan {
             store: Rc::new(RefCell::new(HashMap::new())),
@@ -173,7 +179,6 @@ impl Lingkungan {
         }
     }
 
-    /// Mengambil nilai variabel dari scope chain.
     pub fn get(&self, name: &str) -> Option<Object> {
         match self.store.borrow().get(name) {
             Some(obj) => Some(obj.clone()),
@@ -184,17 +189,16 @@ impl Lingkungan {
         }
     }
 
-    /// Menyimpan variabel baru di scope saat ini.
     pub fn set(&mut self, name: String, val: Object) -> Object {
         self.store.borrow_mut().insert(name, val.clone());
         val
     }
 
-    /// Memperbarui variabel yang sudah ada di scope chain.
-    /// Digunakan untuk penugasan (`x = 5`, `x += 3`).
     pub fn update(&mut self, name: &str, val: Object) -> Option<Object> {
         if self.store.borrow().contains_key(name) {
-            self.store.borrow_mut().insert(name.to_string(), val.clone());
+            self.store
+                .borrow_mut()
+                .insert(name.to_string(), val.clone());
             return Some(val);
         }
         if let Some(outer) = &mut self.outer {
@@ -203,8 +207,6 @@ impl Lingkungan {
         None
     }
 
-    /// Mengambil semua variabel dari lingkup saat ini (tanpa outer).
-    /// Digunakan untuk sistem `masukkan` (impor modul).
     pub fn get_all_local(&self) -> HashMap<KunciKamus, Object> {
         let mut result = HashMap::new();
         for (key, val) in self.store.borrow().iter() {

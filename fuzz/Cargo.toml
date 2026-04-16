@@ -1,0 +1,16 @@
+[package]
+name = "taji-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+[package.metadata]
+cargo-fuzz = true
+[dependencies]
+libfuzzer-sys = "0.4"
+taji = { path = ".." }
+
+[[bin]]
+name = "fuzz_kompilator"
+path = "fuzz_targets/fuzz_kompilator.rs"
+test = false
+doc = false

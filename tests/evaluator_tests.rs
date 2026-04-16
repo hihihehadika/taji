@@ -12,7 +12,11 @@ fn test_eval(input: &str) -> Object {
     let program = parser.parse_program();
 
     if !parser.errors.is_empty() {
-        panic!("Parser errors for input '{}':\n{}", input, parser.errors.join("\n"));
+        panic!(
+            "Parser errors for input '{}':\n{}",
+            input,
+            parser.errors.join("\n")
+        );
     }
 
     let mut env = Lingkungan::new();
@@ -81,7 +85,7 @@ fn test_eval_integer_expression() {
 
 #[test]
 fn test_eval_boolean_expression() {
-    let tests = vec![
+    let tests = [
         ("benar", true),
         ("salah", false),
         ("1 < 2", true),
@@ -179,8 +183,14 @@ fn test_error_handling() {
         ("5 + benar;", "tipe tidak cocok: BILANGAN + BOOLEAN"),
         ("5 + benar; 5;", "tipe tidak cocok: BILANGAN + BOOLEAN"),
         ("-benar", "operator tidak dikenal: -BOOLEAN"),
-        ("benar + salah;", "operator tidak dikenal: BOOLEAN + BOOLEAN"),
-        ("5; benar + salah; 5", "operator tidak dikenal: BOOLEAN + BOOLEAN"),
+        (
+            "benar + salah;",
+            "operator tidak dikenal: BOOLEAN + BOOLEAN",
+        ),
+        (
+            "5; benar + salah; 5",
+            "operator tidak dikenal: BOOLEAN + BOOLEAN",
+        ),
         ("foobar", "pengenal tidak dikenal: 'foobar'"),
     ];
 
@@ -199,7 +209,10 @@ fn test_misalkan_statements() {
         ("misalkan a = 5; a;", 5),
         ("misalkan a = 5 * 5; a;", 25),
         ("misalkan a = 5; misalkan b = a; b;", 5),
-        ("misalkan a = 5; misalkan b = a; misalkan c = a + b + 5; c;", 15),
+        (
+            "misalkan a = 5; misalkan b = a; misalkan c = a + b + 5; c;",
+            15,
+        ),
     ];
 
     for (input, expected) in tests {
@@ -227,7 +240,10 @@ fn test_function_application() {
         ("misalkan id = fungsi(x) { x; }; id(5);", 5),
         ("misalkan id = fungsi(x) { kembalikan x; }; id(5);", 5),
         ("misalkan ganda = fungsi(x) { x * 2; }; ganda(5);", 10),
-        ("misalkan tambah = fungsi(x, y) { x + y; }; tambah(5, 5);", 10),
+        (
+            "misalkan tambah = fungsi(x, y) { x + y; }; tambah(5, 5);",
+            10,
+        ),
         (
             "misalkan tambah = fungsi(x, y) { x + y; }; tambah(5 + 5, tambah(5, 5));",
             20,
@@ -312,10 +328,11 @@ fn test_array_literal() {
     let result = test_eval("[1, 2 * 2, 3 + 3]");
     match result {
         Object::Array(elements) => {
-            assert_eq!(elements.len(), 3);
-            test_integer_object(&elements[0], 1);
-            test_integer_object(&elements[1], 4);
-            test_integer_object(&elements[2], 6);
+            let el = elements.borrow();
+            assert_eq!(el.len(), 3);
+            test_integer_object(&el[0], 1);
+            test_integer_object(&el[1], 4);
+            test_integer_object(&el[2], 6);
         }
         _ => panic!("expected Array, got {:?}", result),
     }
@@ -354,7 +371,7 @@ fn test_hash_literal() {
     let result = test_eval(input);
     match result {
         Object::Hash(pairs) => {
-            assert_eq!(pairs.len(), 6);
+            assert_eq!(pairs.borrow().len(), 6);
         }
         _ => panic!("expected Hash, got {:?}", result),
     }
@@ -392,11 +409,10 @@ fn test_division_by_zero() {
 
 #[test]
 fn test_float_literals() {
-    let tests: Vec<(&str, f64)> = vec![
-        ("3.14", 3.14),
-        ("0.5", 0.5),
-        ("-2.5", -2.5),
-    ];
+    // Nilai 3.14 di sini adalah INPUT STRING yang diparse oleh Taji,
+    // bukan referensi ke konstanta matematika π.
+    #[allow(clippy::approx_constant)]
+    let tests: Vec<(&str, f64)> = vec![("3.14", 3.14), ("0.5", 0.5), ("-2.5", -2.5)];
 
     for (input, expected) in tests {
         let result = test_eval(input);
@@ -483,7 +499,7 @@ fn test_untuk_loop() {
         total;
     ";
     let result = test_eval(input);
-    test_integer_object(&result, 15);  // 1+2+3+4+5
+    test_integer_object(&result, 15); // 1+2+3+4+5
 }
 
 #[test]
@@ -498,7 +514,7 @@ fn test_untuk_loop_nested() {
         total;
     ";
     let result = test_eval(input);
-    test_integer_object(&result, 9);  // 3 * 3
+    test_integer_object(&result, 9); // 3 * 3
 }
 
 #[test]
@@ -530,7 +546,7 @@ fn test_berhenti_untuk() {
         total;
     ";
     let result = test_eval(input);
-    test_integer_object(&result, 5);  // 0,1,2,3,4 → 5 iterasi
+    test_integer_object(&result, 5); // 0,1,2,3,4 → 5 iterasi
 }
 
 #[test]
@@ -546,7 +562,7 @@ fn test_lanjut_untuk() {
         total;
     ";
     let result = test_eval(input);
-    test_integer_object(&result, 5);  // ganjil: 1,3,5,7,9
+    test_integer_object(&result, 5); // ganjil: 1,3,5,7,9
 }
 
 #[test]
@@ -594,10 +610,7 @@ fn test_builtin_teks() {
 
 #[test]
 fn test_builtin_angka() {
-    let tests = vec![
-        ("angka(\"42\")", 42),
-        ("angka(\"100\")", 100),
-    ];
+    let tests = vec![("angka(\"42\")", 42), ("angka(\"100\")", 100)];
 
     for (input, expected) in tests {
         let result = test_eval(input);
@@ -609,6 +622,7 @@ fn test_builtin_angka() {
 fn test_builtin_angka_float() {
     let input = "angka(\"3.14\")";
     let result = test_eval(input);
+    #[allow(clippy::approx_constant)] // 3.14 adalah output parsing string "3.14", bukan π
     test_float_object(&result, 3.14);
 }
 
@@ -661,10 +675,11 @@ fn test_builtin_pisah() {
     let result = test_eval(input);
     match result {
         Object::Array(arr) => {
-            assert_eq!(arr.len(), 3);
-            assert_eq!(format!("{}", arr[0]), "a");
-            assert_eq!(format!("{}", arr[1]), "b");
-            assert_eq!(format!("{}", arr[2]), "c");
+            let a = arr.borrow();
+            assert_eq!(a.len(), 3);
+            assert_eq!(format!("{}", a[0]), "a");
+            assert_eq!(format!("{}", a[1]), "b");
+            assert_eq!(format!("{}", a[2]), "c");
         }
         _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
     }
@@ -676,10 +691,11 @@ fn test_builtin_pisah_spasi() {
     let result = test_eval(input);
     match result {
         Object::Array(arr) => {
-            assert_eq!(arr.len(), 3);
-            assert_eq!(format!("{}", arr[0]), "halo");
-            assert_eq!(format!("{}", arr[1]), "dunia");
-            assert_eq!(format!("{}", arr[2]), "taji");
+            let a = arr.borrow();
+            assert_eq!(a.len(), 3);
+            assert_eq!(format!("{}", a[0]), "halo");
+            assert_eq!(format!("{}", a[1]), "dunia");
+            assert_eq!(format!("{}", a[2]), "taji");
         }
         _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
     }
@@ -692,7 +708,8 @@ fn test_builtin_pisah_error() {
         Object::Error(msg) => {
             assert!(
                 msg.contains("argumen pertama untuk 'pisah' harus TEKS"),
-                "pesan error tidak sesuai: {}", msg
+                "pesan error tidak sesuai: {}",
+                msg
             );
         }
         _ => panic!("diharapkan Error, diterima {:?}", result),
@@ -726,7 +743,8 @@ fn test_builtin_gabung_error() {
         Object::Error(msg) => {
             assert!(
                 msg.contains("argumen pertama untuk 'gabung' harus DAFTAR"),
-                "pesan error tidak sesuai: {}", msg
+                "pesan error tidak sesuai: {}",
+                msg
             );
         }
         _ => panic!("diharapkan Error, diterima {:?}", result),
@@ -782,7 +800,8 @@ fn test_builtin_baca_berkas_tidak_ada() {
         Object::Error(msg) => {
             assert!(
                 msg.contains("gagal membaca berkas"),
-                "pesan error tidak sesuai: {}", msg
+                "pesan error tidak sesuai: {}",
+                msg
             );
         }
         _ => panic!("diharapkan Error, diterima {:?}", result),
@@ -866,7 +885,8 @@ fn test_coba_tangkap_menangkap_error() {
     match result {
         Object::Str(s) => assert!(
             s.contains("tertangkap"),
-            "pesan harus mengandung 'tertangkap', diterima: {}", s
+            "pesan harus mengandung 'tertangkap', diterima: {}",
+            s
         ),
         _ => panic!("diharapkan TEKS, diterima {:?}", result),
     }
@@ -901,7 +921,8 @@ fn test_coba_tangkap_pengenal_tidak_dikenal() {
     match result {
         Object::Str(s) => assert!(
             s.contains("aman"),
-            "pesan harus mengandung 'aman', diterima: {}", s
+            "pesan harus mengandung 'aman', diterima: {}",
+            s
         ),
         _ => panic!("diharapkan TEKS, diterima {:?}", result),
     }
@@ -982,10 +1003,11 @@ fn test_petakan_dasar() {
     let result = test_eval(input);
     match result {
         Object::Array(arr) => {
-            assert_eq!(arr.len(), 3);
-            test_integer_object(&arr[0], 2);
-            test_integer_object(&arr[1], 4);
-            test_integer_object(&arr[2], 6);
+            let a = arr.borrow();
+            assert_eq!(a.len(), 3);
+            test_integer_object(&a[0], 2);
+            test_integer_object(&a[1], 4);
+            test_integer_object(&a[2], 6);
         }
         _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
     }
@@ -1006,10 +1028,11 @@ fn test_saring_dasar() {
     let result = test_eval(input);
     match result {
         Object::Array(arr) => {
-            assert_eq!(arr.len(), 3);
-            test_integer_object(&arr[0], 2);
-            test_integer_object(&arr[1], 4);
-            test_integer_object(&arr[2], 6);
+            let a = arr.borrow();
+            assert_eq!(a.len(), 3);
+            test_integer_object(&a[0], 2);
+            test_integer_object(&a[1], 4);
+            test_integer_object(&a[2], 6);
         }
         _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
     }
@@ -1034,10 +1057,11 @@ fn test_petakan_saring_gabungan() {
     let result = test_eval(input);
     match result {
         Object::Array(arr) => {
-            assert_eq!(arr.len(), 3);
-            test_integer_object(&arr[0], 20);
-            test_integer_object(&arr[1], 40);
-            test_integer_object(&arr[2], 60);
+            let a = arr.borrow();
+            assert_eq!(a.len(), 3);
+            test_integer_object(&a[0], 20);
+            test_integer_object(&a[1], 40);
+            test_integer_object(&a[2], 60);
         }
         _ => panic!("diharapkan DAFTAR, diterima {:?}", result),
     }
@@ -1157,7 +1181,8 @@ fn test_builtin_potong_error_batas() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("indeks di luar batas"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }
@@ -1204,7 +1229,8 @@ fn test_builtin_huruf_error_tipe() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("harus TEKS"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }
@@ -1230,7 +1256,8 @@ fn test_builtin_jeda() {
     let result = test_eval("jeda(10)");
     assert!(
         matches!(result, Object::Null),
-        "diharapkan kosong, diterima {:?}", result
+        "diharapkan kosong, diterima {:?}",
+        result
     );
 }
 
@@ -1240,7 +1267,8 @@ fn test_builtin_jeda_negatif_error() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("tidak boleh negatif"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }
@@ -1252,7 +1280,11 @@ fn test_builtin_acak_rentang() {
         let result = test_eval("acak(1, 10)");
         match result {
             Object::Integer(val) => {
-                assert!(val >= 1 && val <= 10, "nilai acak {} di luar rentang [1, 10]", val);
+                assert!(
+                    (1..=10).contains(&val),
+                    "nilai acak {} di luar rentang [1, 10]",
+                    val
+                );
             }
             _ => panic!("diharapkan BILANGAN, diterima {:?}", result),
         }
@@ -1271,7 +1303,8 @@ fn test_builtin_acak_error_min_lebih_besar() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("tidak valid"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }
@@ -1287,7 +1320,8 @@ fn test_builtin_ambil_web_error_url() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("gagal mengambil URL"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }
@@ -1299,7 +1333,8 @@ fn test_builtin_ambil_web_argumen_salah() {
     match result {
         Object::Error(msg) => assert!(
             msg.contains("jumlah argumen salah"),
-            "pesan error tidak sesuai: {}", msg
+            "pesan error tidak sesuai: {}",
+            msg
         ),
         _ => panic!("diharapkan Error, diterima {:?}", result),
     }

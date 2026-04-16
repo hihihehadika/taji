@@ -26,7 +26,7 @@ fn test_misalkan_statements() {
         program.statements.len()
     );
 
-    let expected_names = vec!["x", "y", "foobar"];
+    let expected_names = ["x", "y", "foobar"];
     for (i, name) in expected_names.iter().enumerate() {
         let stmt = &program.statements[i];
         assert!(
@@ -117,10 +117,7 @@ fn test_string_literal_expression() {
     check_parser_errors(&p);
 
     assert_eq!(program.statements.len(), 1);
-    assert_eq!(
-        format!("{}", program.statements[0]),
-        "\"halo dunia\""
-    );
+    assert_eq!(format!("{}", program.statements[0]), "\"halo dunia\"");
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -444,7 +441,12 @@ fn test_compound_assign_expression() {
         let program = p.parse_program();
         check_parser_errors(&p);
         assert_eq!(program.statements.len(), 1);
-        assert_eq!(format!("{}", program.statements[0]), expected, "input: {}", input);
+        assert_eq!(
+            format!("{}", program.statements[0]),
+            expected,
+            "input: {}",
+            input
+        );
     }
 }
 
@@ -486,10 +488,7 @@ fn check_parser_errors(parser: &Parser) {
         return;
     }
 
-    let mut msg = format!(
-        "\nParser menemukan {} kesalahan:\n",
-        parser.errors.len()
-    );
+    let mut msg = format!("\nParser menemukan {} kesalahan:\n", parser.errors.len());
     for err in &parser.errors {
         msg.push_str(&format!("  - {}\n", err));
     }
