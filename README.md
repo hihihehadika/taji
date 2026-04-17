@@ -9,46 +9,46 @@
   <img src="https://img.shields.io/badge/sintaks-Bahasa%20Indonesia-red?style=for-the-badge" alt="Bahasa Indonesia">
 </p>
 
-**Bahasa pemrograman modern dengan sintaks Bahasa Indonesia Baku, didukung oleh Bytecode Virtual Machine dan Garbage Collector (Mark-and-Sweep).**
+**Bahasa pemrograman dengan sintaks Bahasa Indonesia Baku, didukung oleh arsitektur Bytecode Virtual Machine.**
 
-Taji adalah bahasa pemrograman dinamis yang dirancang untuk menjadi ringkas, fungsional, dan berkinerja tinggi. Pada versi 1.0.0, Taji telah sepenuhnya menanggalkan *Tree-Walking Evaluator* yang lambat dan bermigrasi ke **Arsitektur Bytecode Virtual Machine (VM)** khusus, membuatnya sangat cepat dan aman dari kebocoran memori berkat *Garbage Collector* internal yang disesuaikan (*Custom Mark-and-Sweep GC*).
+Taji adalah proyek bahasa pemrograman yang dirancang untuk menjadi fungsional dan mudah dipahami. Pada versi 1.0.0, arsitektur Taji telah bermigrasi dari *Tree-Walking Evaluator* menuju **Bytecode Virtual Machine (VM)**. Pembaruan ini mengimplementasikan eksekusi berbasis tumpukan (*stack-based*) dan integrasi *Garbage Collector* dengan algoritma Mark-and-Sweep.
 
 ---
 
-## 🔥 Fitur Utama v1.0.0 (The Bytecode Engine)
+## Fitur Utama v1.0.0
 
-| Fitur | Spesifikasi Khusus |
+| Fitur | Deskripsi |
 | --- | --- |
-| **Sintaks Bahasa Indonesia Baku** | `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut`, `coba`, `tangkap`, `lemparkan`. |
-| **Bytecode Virtual Machine** | Eksekusi berbasis tumpukan (*stack-based*) satu dimensi tanpa rekursi pohon AST. Performa *looping* dan komputasi melesat tajam! |
-| **Garbage Collector Cerdas** | Manajemen memori hibrida (Reference Counting + Mark-and-Sweep) yang mampu mendeteksi dan menghancurkan memori yatim (*Circular References*) secara otomatis! |
-| **Pemrograman Fungsional** | Dilengkapi fitur Array manipulation ala JS: `petakan (map)`, `saring (filter)`, `dorong (push)`. |
-| **Pustaka Standar Komprehensif** | Jaringan HTTP (`ambil_web`), Manipulasi Teks ekstensif (`potong`, `ganti`, `berisi`), utilitas Waktu native, dan Matematika acak bawaan. |
-| **Sistem Tipe Dinamis** | Bilangan Bulat, Desimal (*float*), Teks, Boolean, Daftar (*array*), dan Kamus (*hash map*). |
-| **Ekosistem JSON Bawaan** | Ubah Kamus jadi JSON dan sebaliknya (`ke_json` & `dari_json`) secara natif untuk kebutuhan API modern. |
-| **Sistem Modul Otomatis** | Bongkar-pasang komponen file kode dengan `masukkan("pustaka.tj")` — kode yang diimpor akan langsung dieksekusi di *Call Frame* terisolasi VM. |
+| **Sintaks Bahasa Indonesia** | Kata kunci standar: `misalkan`, `fungsi`, `jika`, `lainnya`, `selama`, `untuk`, `kembalikan`, `berhenti`, `lanjut`, `coba`, `tangkap`, `lemparkan`. |
+| **Arsitektur Bytecode VM** | Eksekusi instruksi berbasis tumpukan untuk meminimalisasi overhead rekursi pada AST. |
+| **Manajemen Memori** | Menggunakan pendekatan hibrida (*Reference Counting* dan *Mark-and-Sweep GC*) untuk mendeteksi dan menyelesaikan siklus referensi (*circular references*). |
+| **Pemrograman Fungsional** | Dukungan manipulasi *Array* (*higher-order functions*): `petakan`, `saring`, `dorong`. |
+| **Pustaka Standar** | Menyediakan utilitas dasar seperti akses HTTP (`ambil_web`), manipulasi teks, utilitas waktu operasi sistem, dan pembangkit nilai acak. |
+| **Sistem Tipe Dinamis** | Mendukung tipe data: Bilangan Bulat, Desimal (*float*), Teks, Boolean, Daftar (*array*), dan Kamus (*hash map*). |
+| **Penanganan Format JSON** | Konversi struktur data internal ke format JSON dan sebaliknya (`ke_json` & `dari_json`) untuk keperluan interaksi data. |
+| **Sistem Modul** | Mendukung impor kode dari berkas eksternal melalui fungsi `masukkan("berkas.tj")`. |
 
 ---
 
-## 🚀 Instalasi dan Kompilasi
+## Instalasi dan Kompilasi
 
 ### Prasyarat
-Anda harus menginstal [Rust & Cargo](https://rustup.rs/) (Minimal versi 1.75.0).
+Sistem harus memiliki [Rust & Cargo](https://rustup.rs/) (Minimal versi 1.75.0).
 
-### Build Cepat
+### Kompilasi dari Kode Sumber
 ```bash
 git clone https://github.com/hihihehadika/taji.git
 cd taji
 cargo build --release
 ```
-Program `taji` yang sudah di-kompilasi (*binary-executable*) akan diletakkan di dalam `target/release/taji`.
+Berkas *binary executable* `taji` akan berada di direktori `target/release/taji`.
 
 ---
 
-## 💻 Cara Menjalankan Taji
+## Panduan Penggunaan
 
-### 1. REPL (Terminal Interaktif)
-Cocok untuk sekadar mencoba logika dan sintaks langsung di dalam memori.
+### 1. Mode Interaktif (REPL)
+Jalankan tanpa argumen untuk masuk ke dalam sesi interaktif.
 ```bash
 cargo run
 ```
@@ -64,89 +64,87 @@ taji >> petakan(data, (x) => x * x)
   → [1, 4, 9]
 ```
 
-### 2. Mengeksekusi Berkas (.tj)
-Jalankan file *script* `.tj` melalui antarmuka baris perintah (*Command Line*):
+### 2. Eksekusi Berkas (.tj)
+Berikan rujukan ke berkas kode sumber Taji sebagai argumen eksekusi.
 ```bash
 cargo run -- contoh/sintaks_dasar.tj
 ```
 
 ---
 
-## 📖 Referensi Sintaks Dasar
+## Referensi Sintaks Dasar
 
-### Deklarasi, Loop, & Pengondisian
+### Deklarasi, Pengulangan, & Pengondisian
 ```taji
 misalkan stok = 100;
 untuk (misalkan i = 1; i <= 5; i += 1) {
-    jika (i == 3) { lanjut; }; // Lewati putaran ke-3
+    jika (i == 3) { lanjut; }; // Melewati iterasi ke-3
     stok -= i;
 };
 cetak(format("Sisa stok hari ini: {}", stok));
 ```
 
-### Penanganan Galat Modern (VM Unwinding)
-Taji mendukung blok `coba` / `tangkap` serta kata kunci `lemparkan`. VM Taji akan secara otomatis me- *restore* tumpukan (stack unwinding) ke kondisi semula jika terjadi kepanikan!
+### Penanganan Kesalahan (Error Handling)
+Taji mendukung struktur pengamanan `coba` / `tangkap` dan pelemparan kesalahan secara leksikal.
 ```taji
 misalkan transfer = fungsi(saldo, tarik) {
     jika (tarik > saldo) {
-        lemparkan format("Uang tak cukup! Saldo hanya {}, diminta {}", saldo, tarik);
+        lemparkan format("Saldo tidak mencukupi. Saldo: {}, Penarikan: {}", saldo, tarik);
     };
     kembalikan saldo - tarik;
 };
 
 coba {
-    transfer(100, 500); // Memicu galat di tingkat Bytecode
+    transfer(100, 500); 
 } tangkap(err) {
-    cetak("[GALAT SISTEM] " + err);
+    cetak("Peringatan Sistem: " + err);
 };
 ```
 
-### Pemrograman Fungsional
-Fungsi kelas utama (*First-Class Functions*) dan fungsi anonim (*Arrow Functions*):
+### Fungsi Kelas Pertama
+Fungsi dapat disimpan dalam variabel atau dilewatkan sebagai argumen.
 ```taji
 misalkan angka = [10, 15, 20, 25];
-// Saring elemen yang memenuhi kondisi genap
 misalkan genap = saring(angka, (x) => x % 2 == 0);
 cetak(genap); // [10, 20]
 ```
 
-### Manipulasi API & JSON
+### Serialisasi JSON
 ```taji
-// Konversi langsung String format JSON ke Objek Taji
-misalkan teks_json = "{\"status\": \"OKE\", \"nilai\": [1,2,3]}";
+misalkan teks_json = "{\"status\": \"Sukses\", \"kode\": 200}";
 misalkan respon = dari_json(teks_json);
-cetak(respon["status"]); // Mencetak: OKE
+cetak(respon["status"]); // Sukses
 ```
 
 ---
 
-## 🛠 Struktur Arsitektur Taji (v1.0)
-Arsitektur Taji telah ditulis ulang (Refactor) secara radikal demi mengejar kecepatan komputasi C-Like:
-1. `Membaca` ➔ **Lexer** memindai Teks kode menjadi Tanda Baca (Token).
-2. `Memahamkan` ➔ **Pratt Parser** menyusun Token menjadi *Abstract Syntax Tree (AST)* murni dan memvalidasi sintaksis.
-3. `Mengkompilasi` ➔ **Kompilator (Kompilator)** menerjemahkan seluruh AST menjadi intruksi perakitan biner satu dimensi (*Opcodes/Bytecode*).
-4. `Mengeksekusi` ➔ **Virtual Machine (VM)** membaca *Bytecode*, mengelola *Call Frames*, memanipulasi *Stack* (Tumpukan), dan menjalankan *Garbage Collector* secara periodik di belakang layar!
+## Struktur Arsitektur Taji (v1.0)
+Arsitektur bahasa Taji terdiri dari empat tahap utama:
+1. **Analisis Leksikal (Lexer):** Memindai teks kode sumber menjadi kumpulan token.
+2. **Analisis Sintaksis (Parser):** Membangun *Abstract Syntax Tree (AST)* menggunakan metode Pratt Parser.
+3. **Kompilasi (Kompilator):** Menerjemahkan representasi AST menjadi serangkaian *Bytecode* (Opcodes).
+4. **Eksekusi (Virtual Machine):** Mengiterasi *Bytecode*, mengelola *Call Frames*, serta mengawasi manajemen memori melalui tumpukan (*stack*) dan *Garbage Collector*.
 
 ---
 
-## 📅 Riwayat Rilis Khusus
-- **v1.0.0 (17 April 2026) "The Bytecode Engine"**: Taji telah bermigrasi 100% ke arsitektur Bytecode VM. Dilengkapi dengan manajemen memori **Mark-and-Sweep GC**, sistem *sandbox instruction limit* untuk Fuzzing, dan perbaikan penanganan kesalahan *stack unwinding*. Taji resmi mencapai status siap-produksi!
-- **v0.5.0 (9 April 2026)**: Integrasi pustaka standar Jaringan Web HTTP (`ambil_web`) dan fungsional utilitas ekstensif.
-- **v0.4.0 (7 April 2026)**: Integrasi tipe data JSON eksternal dan sistem `coba / tangkap / lemparkan`.
-- **v0.2.0 (4 April 2026)**: Penambahan kendali alur (`untuk`, `selama`) dan sistem muat modul (`masukkan`).
-- **v0.1.0 (4 April 2026)**: Rilis purwarupa awal dengan *Tree-Walking Evaluator*.
+## Riwayat Pembaruan
+- **v1.0.0 (17 April 2026)**: Migrasi arsitektur ke Bytecode VM. Implementasi Mark-and-Sweep GC dan mitigasi *infinite-loop sandbox* pada kompilator.
+- **v0.5.0 (9 April 2026)**: Penambahan fungsionalitas HTTP bawaan (`ambil_web`) dan modul utilitas teks.
+- **v0.4.0 (7 April 2026)**: Integrasi pustaka *parsing* JSON dan sistem eksepsi `coba / tangkap / lemparkan`.
+- **v0.2.0 (4 April 2026)**: Dukungan alur perulangan (`untuk`, `selama`) dan resolusi berkas multi-modul (`masukkan`).
+- **v0.1.0 (4 April 2026)**: Kerangka dasar (Lexer, Parser) dan *Tree-Walking Evaluator* eksperimental.
 
 ---
 
-## 🛡️ Pengujian Kekuatan (Fuzzing & Memory-Safe)
-Infrastruktur Taji telah lolos pengujian *Memory Isolation* tingkat kernel melalui `miri` (Rust Miri test) dan *Fuzz Testing* menggunakan `cargo-fuzz`.  
-Selain itu, kompilator Taji selalu tervalidasi melalui **129 pengujian unit (Unit Tests) otomatis** setiap ada fitur baru:
+## Pengujian Unit (Unit Testing)
+Proyek ini divalidasi oleh lebih dari **129 pengujian unit** otomatis (`cargo test`) untuk menjaga integritas pada komponen *Lexer*, *Parser*, *Compiler*, dan *VM*. Infrastruktur ini juga telah melalui pengujian dasar memori (Miri) dan batasan masukan (*Fuzzing*).
+
 ```bash
 cargo test
 ```
 
 <br>
 <p align="center">
-  Arsitektur Taji didesain tanpa kompromi demi pengalaman bahasa tingkat tinggi.<br>
-  <b>Dikembangkan secara ambisius oleh Dika.</b>
+  Proyek pemrograman independen.<br>
+  <b>Oleh Dika.</b>
 </p>
