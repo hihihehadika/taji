@@ -1,0 +1,39 @@
+{
+  "name": "tajilang",
+  "displayName": "Taji",
+  "description": "Dukungan bahasa pemrograman Taji untuk Visual Studio Code",
+  "version": "1.1.0",
+  "publisher": "dika",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "taji",
+        "aliases": [
+          "Taji",
+          "taji"
+        ],
+        "extensions": [
+          ".tj"
+        ],
+        "icon": {
+          "light": "./icons/taji-icon.svg",
+          "dark": "./icons/taji-icon.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "taji",
+        "scopeName": "source.taji",
+        "path": "./syntaxes/taji.tmLanguage.json"
+      }
+    ]
+  }
+}
