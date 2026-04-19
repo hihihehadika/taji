@@ -5,3 +5,7 @@
 .vscode/
 *.profraw
 .DS_Store
+
+# Ekstensi VSCode Terkompilasi
+*.vsix
+vscode-tajilang/*.vsix
