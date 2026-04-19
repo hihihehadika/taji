@@ -1,0 +1,70 @@
+// ╔══════════════════════════════════════════════════╗
+// ║  Modul Teks — Utilitas Manipulasi Teks            ║
+// ║  Gunakan: misalkan t = masukkan("modul/teks.tj")  ║
+// ╚══════════════════════════════════════════════════╝
+cetak("[Teks.tj dimuat...]");
+
+// Membalik urutan karakter dalam sebuah string
+misalkan balik = fungsi(s) {
+    misalkan hasil = "";
+    misalkan i = panjang(s) - 1;
+    selama (i >= 0) {
+        hasil = hasil + potong(s, i, i + 1);
+        i -= 1;
+    };
+    kembalikan hasil;
+};
+
+// Mengulangi sebuah teks sebanyak n kali
+misalkan ulangi = fungsi(s, n) {
+    misalkan hasil = "";
+    misalkan i = 0;
+    selama (i < n) {
+        hasil = hasil + s;
+        i += 1;
+    };
+    kembalikan hasil;
+};
+
+// Mengecek apakah sebuah teks adalah palindrom
+misalkan palindrom = fungsi(s) {
+    misalkan s_kecil = huruf_kecil(s);
+    kembalikan s_kecil == balik(s_kecil);
+};
+
+// Menghitung jumlah kemunculan substring dalam string
+misalkan hitung_kemunculan = fungsi(teks_utama, sub) {
+    misalkan jumlah = 0;
+    misalkan potongan = pisah(teks_utama, sub);
+    kembalikan panjang(potongan) - 1;
+};
+
+// Memangkas spasi di kiri dan kanan (trim)
+misalkan pangkas = fungsi(s) {
+    kembalikan ganti(ganti(s, " ", ""), "\t", "");
+};
+
+// Membuat judul (Title Case) dari sebuah kalimat
+misalkan judul = fungsi(s) {
+    misalkan kata = pisah(s, " ");
+    misalkan hasil = [];
+    misalkan i = 0;
+    selama (i < panjang(kata)) {
+        misalkan k = kata[i];
+        misalkan huruf_depan = huruf_besar(potong(k, 0, 1));
+        misalkan sisa_huruf = huruf_kecil(potong(k, 1, panjang(k)));
+        hasil = dorong(hasil, huruf_depan + sisa_huruf);
+        i += 1;
+    };
+    kembalikan gabung(hasil, " ");
+};
+
+// ─── Test Mandiri ───────────────────────────────────
+cetak("--- Test Modul Teks ---");
+cetak("balik('Taji') = " + balik("Taji"));
+cetak("ulangi('Ha', 3) = " + ulangi("Ha", 3));
+cetak("palindrom('kasur rusak') = " + palindrom("kasur rusak"));
+cetak("palindrom('halo') = " + palindrom("halo"));
+cetak("hitung_kemunculan('banana', 'a') = " + hitung_kemunculan("banana", "a"));
+cetak("judul('bahasa taji hebat') = " + judul("bahasa taji hebat"));
+cetak("--- Selesai ---");

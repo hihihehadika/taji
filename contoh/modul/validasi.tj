@@ -1,0 +1,63 @@
+// ╔══════════════════════════════════════════════════╗
+// ║  Modul Validasi — Validasi Data & Input           ║
+// ║  Gunakan: misalkan v = masukkan("modul/validasi.tj")║
+// ╚══════════════════════════════════════════════════╝
+cetak("[Validasi.tj dimuat...]");
+
+// Mengecek apakah sebuah teks merupakan angka valid
+misalkan adalah_angka = fungsi(s) {
+    misalkan hasil = angka(s);
+    kembalikan tipe(hasil) != "KESALAHAN";
+};
+
+// Mengecek apakah string tidak kosong
+misalkan tidak_kosong = fungsi(s) {
+    kembalikan panjang(s) > 0;
+};
+
+// Mengecek panjang minimum sebuah string
+misalkan min_panjang = fungsi(s, min) {
+    kembalikan panjang(s) >= min;
+};
+
+// Mengecek apakah email terlihat valid (ada @ dan titik)
+misalkan adalah_email = fungsi(s) {
+    kembalikan berisi(s, "@") dan berisi(s, ".");
+};
+
+// Mengecek apakah nilai dalam rentang tertentu
+misalkan dalam_rentang = fungsi(nilai, bawah, atas) {
+    kembalikan nilai >= bawah dan nilai <= atas;
+};
+
+// Validasi sebuah kamus (hash map) berdasarkan aturan fields yang wajib ada
+misalkan wajib_ada = fungsi(data, daftar_kunci) {
+    misalkan i = 0;
+    selama (i < panjang(daftar_kunci)) {
+        misalkan kunci = daftar_kunci[i];
+        jika (tipe(data[kunci]) == "Nihil") {
+            kembalikan salah;
+        };
+        i += 1;
+    };
+    kembalikan benar;
+};
+
+// ─── Test Mandiri ───────────────────────────────────
+cetak("--- Test Modul Validasi ---");
+cetak("adalah_angka('123')   = " + adalah_angka("123"));
+cetak("adalah_angka('abc')   = " + adalah_angka("abc"));
+cetak("adalah_angka('3.14')  = " + adalah_angka("3.14"));
+cetak("tidak_kosong('')      = " + tidak_kosong(""));
+cetak("tidak_kosong('Taji')  = " + tidak_kosong("Taji"));
+cetak("min_panjang('Taji',3) = " + min_panjang("Taji", 3));
+cetak("min_panjang('Hi', 5)  = " + min_panjang("Hi", 5));
+cetak("adalah_email('a@b.c') = " + adalah_email("a@b.c"));
+cetak("adalah_email('bukan') = " + adalah_email("bukan"));
+cetak("dalam_rentang(5,1,10) = " + dalam_rentang(5, 1, 10));
+cetak("dalam_rentang(15,1,10)= " + dalam_rentang(15, 1, 10));
+
+misalkan profil = {"nama": "Dika", "umur": 20};
+cetak("wajib_ada profil [nama,umur] = " + wajib_ada(profil, ["nama", "umur"]));
+cetak("wajib_ada profil [nama,email]= " + wajib_ada(profil, ["nama", "email"]));
+cetak("--- Selesai ---");

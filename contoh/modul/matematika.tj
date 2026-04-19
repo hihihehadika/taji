@@ -14,3 +14,5 @@ misalkan faktorial = fungsi(n) {
 
 // Semua variabel dan fungsi di atas secara otomatis akan 
 // dikembalikan sebagai Kamus saat file ini dipanggil.
+
+cetak("Test lokal faktorial(5): " + faktorial(5));

@@ -1,0 +1,161 @@
+// =========================================================================
+//  TAJI v1.1.0 - PROJECT BESAR: SISTEM MANAJEMEN PEGAWAI BERBASIS JSON
+// =========================================================================
+// Skrip ini mendemonstrasikan kapabilitas produksi dari bahasa Taji:
+// 1. I/O Terminal (tanya, cetak)
+// 2. Manipulasi Struktur Data Kompleks (Hash/Kamus, Array/Daftar)
+// 3. File System I/O (baca_berkas, tulis_berkas)
+// 4. Konversi Tipe dan JSON Parsing (ke_json, dari_json)
+// 5. Http Request Bawaan (ambil_web)
+// =========================================================================
+
+misalkan berkas_db = "database_pegawai.json";
+
+// --- [ BAGIAN 1: SISTEM DATABASE ] ---
+
+// Memuat database dari penyimpanan fisik (Hardisk)
+misalkan muat_database = fungsi() {
+    misalkan isi = baca_berkas(berkas_db);
+    // Jika file belum ada atau error dibaca, kembalikan daftar kosong
+    jika (tipe(isi) == "ERROR") {
+        kembalikan [];
+    };
+    kembalikan dari_json(isi);
+};
+
+// Menyimpan data memori ke dalam file biner/teks
+misalkan simpan_database = fungsi(data) {
+    // Argumen 'benar' untuk format JSON yang rapi (Pretty Print)
+    misalkan teks_json = ke_json(data, benar);
+    tulis_berkas(berkas_db, teks_json);
+};
+
+
+// --- [ BAGIAN 2: LOGIKA APLIKASI ] ---
+
+// Tampilkan semua data pegawai
+misalkan lihat_pegawai = fungsi(db) {
+    cetak("\n--- DAFTAR PEGAWAI SAAT INI ---");
+    misalkan jumlah = panjang(db);
+    
+    jika (jumlah == 0) {
+        cetak("[ Kosong. Belum ada pegawai yang terdaftar ]");
+        kembalikan kosong;
+    };
+
+    untuk (misalkan i = 0; i < jumlah; i += 1) {
+        misalkan pegawai = db[i];
+        misalkan teks_info = format("{}. Nama: {} | Posisi: {} | Gaji: Rp {}", 
+            i + 1, 
+            pegawai["nama"], 
+            pegawai["posisi"], 
+            pegawai["gaji"]
+        );
+        cetak(teks_info);
+    };
+};
+
+// Menambah data pegawai baru dari input pengguna
+misalkan tambah_pegawai = fungsi(db) {
+    cetak("\n--- TAMBAH PEGAWAI BARU ---");
+    misalkan n = tanya("Masukkan Nama: ");
+    misalkan p = tanya("Masukkan Posisi (misal: Programmer): ");
+    misalkan g_teks = tanya("Masukkan Gaji (angka): ");
+    
+    misalkan g_angka = angka(g_teks);
+    
+    misalkan pegawai_baru = {
+        "nama": huruf_besar(n),
+        "posisi": p,
+        "gaji": g_angka,
+        "terdaftar": waktu()
+    };
+
+    // Tambahkan ke database lokal
+    dorong(db, pegawai_baru);
+    
+    // Simpan ke hardisk
+    simpan_database(db);
+    cetak(">> Berhasil menyimpan " + n + " ke database!");
+};
+
+// Mengambil data dummy dari REST API eksternal via Internet
+misalkan import_api = fungsi(db) {
+    cetak("\n[Mengambil data dari Internet...]");
+    
+    // Request HTTP GET sederhana menggunakan fungsi bawaan Taji
+    misalkan respon = ambil_web("https://jsonplaceholder.typicode.com/users/1");
+    
+    jika (tipe(respon) == "ERROR") {
+        cetak(">> Gagal terhubung ke internet!");
+        kembalikan kosong;
+    };
+
+    misalkan data_api = dari_json(respon);
+    
+    misalkan pegawai_baru = {
+        "nama": data_api["name"],
+        "posisi": "Remote Outsourcing",
+        "gaji": 15000000,
+        "terdaftar": waktu()
+    };
+
+    dorong(db, pegawai_baru);
+    simpan_database(db);
+    cetak(">> Berhasil mengimpor " + data_api["name"] + " dari Cloud API!");
+};
+
+
+// --- [ BAGIAN 3: SIKLUS UTAMA (MAIN LOOP) ] ---
+
+misalkan aplikasi_berjalan = fungsi() {
+    misalkan db = muat_database();
+    
+    // Gunakan trik variabel perulangan statis untuk loop tak terbatas (Infinite Loop)
+    untuk (misalkan berjalan = 1; berjalan == 1; berjalan += 0) {
+        cetak("\n==================================");
+        cetak(" APLIKASI MANAJEMEN PEGAWAI TAJI ");
+        cetak("==================================");
+        cetak("1. Lihat Daftar Pegawai");
+        cetak("2. Tambah Pegawai (Manual)");
+        cetak("3. Tambah Pegawai (Internet API)");
+        cetak("4. Hapus Semua Data");
+        cetak("0. Keluar Aplikasi");
+        cetak("==================================");
+        
+        misalkan pilihan = tanya("Pilih menu (0-4): ");
+
+        jika (pilihan == "1") {
+            lihat_pegawai(db);
+        } lainnya {
+            jika (pilihan == "2") {
+                tambah_pegawai(db);
+            } lainnya {
+                jika (pilihan == "3") {
+                    import_api(db);
+                } lainnya {
+                    jika (pilihan == "4") {
+                        misalkan konfirmasi = tanya("Yakin ingin mereset database? (y/n): ");
+                        jika (huruf_kecil(konfirmasi) == "y") {
+                            db = [];
+                            simpan_database(db);
+                            cetak(">> Database berhasil di-reset.");
+                        };
+                    } lainnya {
+                        jika (pilihan == "0") {
+                            cetak(">> Terima kasih telah menggunakan Taji!");
+                            berhenti;
+                        } lainnya {
+                            cetak(">> Pilihan tidak valid!");
+                        };
+                    };
+                };
+            };
+        };
+        
+        jeda(1000); // Tunggu 1 detik agar UX lebih rapi
+    };
+};
+
+// Jalankan program
+aplikasi_berjalan();

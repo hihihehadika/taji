@@ -22,6 +22,23 @@ misalkan data = dari_json(json_teks);
 cetak(format("Data dari JSON => Sekolah: {}, Jumlah Siswa: {}", data["sekolah"], data["siswa"]));
 
 // 2. Petakan & Saring
+misalkan saring = fungsi(arr, f) {
+    misalkan hasil = [];
+    untuk (misalkan i = 0; i < panjang(arr); i += 1) {
+        jika (f(arr[i])) {
+            hasil = dorong(hasil, arr[i]);
+        };
+    };
+    kembalikan hasil;
+};
+
+misalkan petakan = fungsi(arr, f) {
+    misalkan hasil = [];
+    untuk (misalkan i = 0; i < panjang(arr); i += 1) {
+        hasil = dorong(hasil, f(arr[i]));
+    };
+    kembalikan hasil;
+};
 misalkan deret = [1, 2, 3, 4, 5, 6];
 misalkan genap = saring(deret, (x) => x % 2 == 0);
 misalkan genap_kuadrat = petakan(genap, (x) => x * x);

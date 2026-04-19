@@ -1,0 +1,109 @@
+// ╔══════════════════════════════════════════════════╗
+// ║  Modul Koleksi — Utilitas Array/Daftar            ║
+// ║  Gunakan: misalkan k = masukkan("modul/koleksi.tj")║
+// ╚══════════════════════════════════════════════════╝
+cetak("[Koleksi.tj dimuat...]");
+
+// Memetakan setiap elemen array ke nilai baru dengan fungsi f
+misalkan petakan = fungsi(arr, f) {
+    misalkan hasil = [];
+    misalkan i = 0;
+    selama (i < panjang(arr)) {
+        hasil = dorong(hasil, f(arr[i]));
+        i += 1;
+    };
+    kembalikan hasil;
+};
+
+// Menyaring elemen array yang memenuhi kondisi predikat f
+misalkan saring = fungsi(arr, f) {
+    misalkan hasil = [];
+    misalkan i = 0;
+    selama (i < panjang(arr)) {
+        jika (f(arr[i])) {
+            hasil = dorong(hasil, arr[i]);
+        };
+        i += 1;
+    };
+    kembalikan hasil;
+};
+
+// Mereduksi/melipat array menjadi satu nilai
+misalkan lipat = fungsi(arr, awal, f) {
+    misalkan akumulator = awal;
+    misalkan i = 0;
+    selama (i < panjang(arr)) {
+        akumulator = f(akumulator, arr[i]);
+        i += 1;
+    };
+    kembalikan akumulator;
+};
+
+// Membalik urutan elemen array
+misalkan balik_array = fungsi(arr) {
+    misalkan hasil = [];
+    misalkan i = panjang(arr) - 1;
+    selama (i >= 0) {
+        hasil = dorong(hasil, arr[i]);
+        i -= 1;
+    };
+    kembalikan hasil;
+};
+
+// Mengambil n elemen pertama dari array
+misalkan ambil = fungsi(arr, n) {
+    misalkan hasil = [];
+    misalkan i = 0;
+    selama (i < n dan i < panjang(arr)) {
+        hasil = dorong(hasil, arr[i]);
+        i += 1;
+    };
+    kembalikan hasil;
+};
+
+// Mencari nilai maksimum dalam array angka
+misalkan maks = fungsi(arr) {
+    jika (panjang(arr) == 0) { kembalikan kosong; };
+    misalkan m = arr[0];
+    misalkan i = 1;
+    selama (i < panjang(arr)) {
+        jika (arr[i] > m) {
+            m = arr[i];
+        };
+        i += 1;
+    };
+    kembalikan m;
+};
+
+// Mencari nilai minimum dalam array angka
+misalkan min = fungsi(arr) {
+    jika (panjang(arr) == 0) { kembalikan kosong; };
+    misalkan m = arr[0];
+    misalkan i = 1;
+    selama (i < panjang(arr)) {
+        jika (arr[i] < m) {
+            m = arr[i];
+        };
+        i += 1;
+    };
+    kembalikan m;
+};
+
+// Menghitung total penjumlahan array
+misalkan jumlah = fungsi(arr) {
+    kembalikan lipat(arr, 0, fungsi(a, b) { a + b; });
+};
+
+// ─── Test Mandiri ───────────────────────────────────
+cetak("--- Test Modul Koleksi ---");
+misalkan angka = [3, 1, 4, 1, 5, 9, 2, 6];
+
+cetak("Array : " + teks(angka));
+cetak("petakan kuadrat : " + teks(petakan(angka, fungsi(x) { x * x; })));
+cetak("saring genap   : " + teks(saring(angka, fungsi(x) { x % 2 == 0; })));
+cetak("lipat jumlah   : " + jumlah(angka));
+cetak("balik array    : " + teks(balik_array(angka)));
+cetak("ambil 3 pertama: " + teks(ambil(angka, 3)));
+cetak("maksimum       : " + maks(angka));
+cetak("minimum        : " + min(angka));
+cetak("--- Selesai ---");

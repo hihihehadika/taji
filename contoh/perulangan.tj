@@ -1,4 +1,4 @@
-cetak("=== CONTOH LOOPING GAYA C ===");
+cetak("=== CONTOH LOOPING===");
 
 // 1. Loop sederhana
 misalkan total = 0;
