@@ -1,7 +1,8 @@
 //! Lexer (Pemindai Leksikal) untuk bahasa Taji.
 //!
 //! Memecah kode sumber menjadi deretan token yang akan
-//! diproses oleh Parser.
+//! diproses oleh Parser. Setiap token menyimpan metadata
+//! posisi (baris dan kolom) untuk pelaporan galat yang akurat.
 
 use crate::token::{Token, TokenType};
 
@@ -11,6 +12,10 @@ pub struct Lexer {
     position: usize,
     read_position: usize,
     ch: char,
+    /// Nomor baris saat ini (1-indexed).
+    baris: usize,
+    /// Nomor kolom saat ini (1-indexed).
+    kolom: usize,
 }
 
 impl Lexer {
@@ -20,6 +25,8 @@ impl Lexer {
             position: 0,
             read_position: 0,
             ch: '\0',
+            baris: 1,
+            kolom: 0,
         };
         l.read_char();
         l
@@ -34,6 +41,14 @@ impl Lexer {
         }
         self.position = self.read_position;
         self.read_position += 1;
+
+        // Pelacakan baris dan kolom
+        if self.ch == '\n' {
+            self.baris += 1;
+            self.kolom = 0;
+        } else {
+            self.kolom += 1;
+        }
     }
 
     /// Mengintip karakter berikutnya tanpa memajukan posisi.
@@ -49,99 +64,138 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
+        // Catat posisi awal token sebelum membaca
+        let baris_token = self.baris;
+        let kolom_token = self.kolom;
+
         let tok = match self.ch {
             '=' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::Eq, "==".to_string())
+                    Token::new(TokenType::Eq, "==".to_string(), baris_token, kolom_token)
                 } else if self.peek_char() == '>' {
                     self.read_char();
-                    Token::new(TokenType::Arrow, "=>".to_string())
+                    Token::new(TokenType::Arrow, "=>".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Assign, "=".to_string())
+                    Token::new(TokenType::Assign, "=".to_string(), baris_token, kolom_token)
                 }
             }
             '+' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::PlusEq, "+=".to_string())
+                    Token::new(
+                        TokenType::PlusEq,
+                        "+=".to_string(),
+                        baris_token,
+                        kolom_token,
+                    )
                 } else {
-                    Token::new(TokenType::Plus, "+".to_string())
+                    Token::new(TokenType::Plus, "+".to_string(), baris_token, kolom_token)
                 }
             }
             '-' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::MinusEq, "-=".to_string())
+                    Token::new(
+                        TokenType::MinusEq,
+                        "-=".to_string(),
+                        baris_token,
+                        kolom_token,
+                    )
                 } else {
-                    Token::new(TokenType::Minus, "-".to_string())
+                    Token::new(TokenType::Minus, "-".to_string(), baris_token, kolom_token)
                 }
             }
             '!' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::NotEq, "!=".to_string())
+                    Token::new(TokenType::NotEq, "!=".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Bang, "!".to_string())
+                    Token::new(TokenType::Bang, "!".to_string(), baris_token, kolom_token)
                 }
             }
             '*' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::MulEq, "*=".to_string())
+                    Token::new(TokenType::MulEq, "*=".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Asterisk, "*".to_string())
+                    Token::new(
+                        TokenType::Asterisk,
+                        "*".to_string(),
+                        baris_token,
+                        kolom_token,
+                    )
                 }
             }
             '/' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::DivEq, "/=".to_string())
+                    Token::new(TokenType::DivEq, "/=".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Slash, "/".to_string())
+                    Token::new(TokenType::Slash, "/".to_string(), baris_token, kolom_token)
                 }
             }
-            '%' => Token::new(TokenType::Modulo, "%".to_string()),
+            '%' => Token::new(TokenType::Modulo, "%".to_string(), baris_token, kolom_token),
             '<' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::LtEq, "<=".to_string())
+                    Token::new(TokenType::LtEq, "<=".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Lt, "<".to_string())
+                    Token::new(TokenType::Lt, "<".to_string(), baris_token, kolom_token)
                 }
             }
             '>' => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    Token::new(TokenType::GtEq, ">=".to_string())
+                    Token::new(TokenType::GtEq, ">=".to_string(), baris_token, kolom_token)
                 } else {
-                    Token::new(TokenType::Gt, ">".to_string())
+                    Token::new(TokenType::Gt, ">".to_string(), baris_token, kolom_token)
                 }
             }
-            ';' => Token::new(TokenType::Semicolon, ";".to_string()),
-            ':' => Token::new(TokenType::Colon, ":".to_string()),
-            '.' => Token::new(TokenType::Dot, ".".to_string()),
-            ',' => Token::new(TokenType::Comma, ",".to_string()),
-            '(' => Token::new(TokenType::Lparen, "(".to_string()),
-            ')' => Token::new(TokenType::Rparen, ")".to_string()),
-            '{' => Token::new(TokenType::Lbrace, "{".to_string()),
-            '}' => Token::new(TokenType::Rbrace, "}".to_string()),
-            '[' => Token::new(TokenType::Lbracket, "[".to_string()),
-            ']' => Token::new(TokenType::Rbracket, "]".to_string()),
+            ';' => Token::new(
+                TokenType::Semicolon,
+                ";".to_string(),
+                baris_token,
+                kolom_token,
+            ),
+            ':' => Token::new(TokenType::Colon, ":".to_string(), baris_token, kolom_token),
+            '.' => Token::new(TokenType::Dot, ".".to_string(), baris_token, kolom_token),
+            ',' => Token::new(TokenType::Comma, ",".to_string(), baris_token, kolom_token),
+            '(' => Token::new(TokenType::Lparen, "(".to_string(), baris_token, kolom_token),
+            ')' => Token::new(TokenType::Rparen, ")".to_string(), baris_token, kolom_token),
+            '{' => Token::new(TokenType::Lbrace, "{".to_string(), baris_token, kolom_token),
+            '}' => Token::new(TokenType::Rbrace, "}".to_string(), baris_token, kolom_token),
+            '[' => Token::new(
+                TokenType::Lbracket,
+                "[".to_string(),
+                baris_token,
+                kolom_token,
+            ),
+            ']' => Token::new(
+                TokenType::Rbracket,
+                "]".to_string(),
+                baris_token,
+                kolom_token,
+            ),
             '"' => {
                 let literal = self.read_string();
-                return Token::new(TokenType::Str, literal);
+                return Token::new(TokenType::Str, literal, baris_token, kolom_token);
             }
-            '\0' => Token::new(TokenType::Eof, "".to_string()),
+            '\0' => Token::new(TokenType::Eof, "".to_string(), baris_token, kolom_token),
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     let type_ = Token::lookup_ident(&literal);
-                    return Token::new(type_, literal);
+                    return Token::new(type_, literal, baris_token, kolom_token);
                 } else if is_digit(self.ch) {
-                    return self.read_number_token();
+                    return self.read_number_token(baris_token, kolom_token);
                 } else {
-                    Token::new(TokenType::Illegal, self.ch.to_string())
+                    Token::new(
+                        TokenType::Illegal,
+                        self.ch.to_string(),
+                        baris_token,
+                        kolom_token,
+                    )
                 }
             }
         };
@@ -162,7 +216,7 @@ impl Lexer {
     }
 
     /// Membaca angka (bulat atau desimal) dan mengembalikan token.
-    fn read_number_token(&mut self) -> Token {
+    fn read_number_token(&mut self, baris: usize, kolom: usize) -> Token {
         let position = self.position;
         while is_digit(self.ch) {
             self.read_char();
@@ -175,10 +229,10 @@ impl Lexer {
                 self.read_char();
             }
             let literal: String = self.input[position..self.position].iter().collect();
-            Token::new(TokenType::Float, literal)
+            Token::new(TokenType::Float, literal, baris, kolom)
         } else {
             let literal: String = self.input[position..self.position].iter().collect();
-            Token::new(TokenType::Int, literal)
+            Token::new(TokenType::Int, literal, baris, kolom)
         }
     }
 
@@ -208,14 +262,30 @@ impl Lexer {
         string
     }
 
-    /// Melewati spasi, tab, newline, dan komentar satu baris (`//`).
+    /// Melewati spasi, tab, newline, komentar satu baris (`//`),
+    /// dan komentar multi-baris (`/* ... */`).
     fn skip_whitespace(&mut self) {
         loop {
             if self.ch.is_whitespace() {
                 self.read_char();
             } else if self.ch == '/' && self.peek_char() == '/' {
-                // Lewati komentar satu baris sampai akhir baris
+                // Komentar satu baris: lewati sampai akhir baris
                 while self.ch != '\n' && self.ch != '\0' {
+                    self.read_char();
+                }
+            } else if self.ch == '/' && self.peek_char() == '*' {
+                // Komentar multi-baris: /* ... */
+                self.read_char(); // lewati '/'
+                self.read_char(); // lewati '*'
+                loop {
+                    if self.ch == '\0' {
+                        break; // EOF di dalam komentar, hentikan
+                    }
+                    if self.ch == '*' && self.peek_char() == '/' {
+                        self.read_char(); // lewati '*'
+                        self.read_char(); // lewati '/'
+                        break;
+                    }
                     self.read_char();
                 }
             } else {

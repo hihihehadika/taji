@@ -14,7 +14,7 @@ fn test_next_token() {
         };
 
         misalkan hasil = tambah(lima, sepuluh);
-        !-/*5;
+        !-/5;
         5 < 10 > 5;
 
         jika (5 < 10) {
@@ -68,7 +68,6 @@ fn test_next_token() {
         (TokenType::Bang, "!"),
         (TokenType::Minus, "-"),
         (TokenType::Slash, "/"),
-        (TokenType::Asterisk, "*"),
         (TokenType::Int, "5"),
         (TokenType::Semicolon, ";"),
         (TokenType::Int, "5"),
@@ -276,6 +275,55 @@ fn test_compound_assignment_tokens() {
         (TokenType::DivEq, "/="),
         (TokenType::Int, "4"),
         (TokenType::Semicolon, ";"),
+        (TokenType::Eof, ""),
+    ];
+
+    for (expected_type, expected_literal) in tests {
+        let tok = l.next_token();
+        assert_eq!(tok.type_, expected_type, "literal: {}", tok.literal);
+        assert_eq!(tok.literal, expected_literal);
+    }
+}
+
+#[test]
+fn test_komentar_multi_baris() {
+    let input = "/* ini komentar */ misalkan x = 1; /* baris\n   dua */ misalkan y = 2;";
+    let mut l = Lexer::new(input);
+
+    let tests = vec![
+        (TokenType::Misalkan, "misalkan"),
+        (TokenType::Ident, "x"),
+        (TokenType::Assign, "="),
+        (TokenType::Int, "1"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Misalkan, "misalkan"),
+        (TokenType::Ident, "y"),
+        (TokenType::Assign, "="),
+        (TokenType::Int, "2"),
+        (TokenType::Semicolon, ";"),
+        (TokenType::Eof, ""),
+    ];
+
+    for (expected_type, expected_literal) in tests {
+        let tok = l.next_token();
+        assert_eq!(tok.type_, expected_type, "literal: {}", tok.literal);
+        assert_eq!(tok.literal, expected_literal);
+    }
+}
+
+#[test]
+fn test_operator_logika_kata() {
+    // 'dan', 'atau', 'bukan' harus menjadi token yang benar
+    let input = "benar dan salah atau bukan benar";
+    let mut l = Lexer::new(input);
+
+    let tests = vec![
+        (TokenType::Benar, "benar"),
+        (TokenType::Dan, "dan"),
+        (TokenType::Salah, "salah"),
+        (TokenType::Atau, "atau"),
+        (TokenType::Bukan, "bukan"),
+        (TokenType::Benar, "benar"),
         (TokenType::Eof, ""),
     ];
 

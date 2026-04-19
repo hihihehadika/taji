@@ -37,10 +37,6 @@ pub fn cari_bawaan(nama: &str) -> Option<Object> {
         "acak" => Some(Object::Bawaan(builtin_acak)),
         "masukkan" => Some(Object::Bawaan(builtin_masukkan)),
         "ambil_web" => Some(Object::Bawaan(builtin_ambil_web)),
-        "petakan" => Some(Object::Error(
-            "petakan: internal evaluator only".to_string(),
-        )),
-        "saring" => Some(Object::Error("saring: internal evaluator only".to_string())),
         _ => None,
     }
 }
@@ -73,8 +69,6 @@ pub const NAMA_BAWAAN: &[&str] = &[
     "acak",
     "masukkan",
     "ambil_web",
-    "petakan",
-    "saring",
 ];
 
 pub fn bikin_tabel_awal() -> crate::compiler::tabel_simbol::TabelSimbol {

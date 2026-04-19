@@ -15,6 +15,10 @@ pub struct Kompilator {
     pub instruksi: Vec<u8>,
     pub konstanta: Vec<Object>,
     pub tabel_simbol: TabelSimbol,
+    /// Pemetaan offset instruksi -> nomor baris sumber.
+    pub tabel_baris: Vec<usize>,
+    /// Nomor baris saat ini yang sedang dikompilasi.
+    baris_sekarang: usize,
     /// Stack patch offset untuk `berhenti` di setiap level loop
     loop_berhenti_patches: Vec<Vec<usize>>,
     /// Stack target offset untuk `lanjut` di setiap level loop
@@ -25,6 +29,8 @@ pub struct HasilKompilasi {
     pub instruksi: Vec<u8>,
     pub konstanta: Vec<Object>,
     pub tabel_simbol: TabelSimbol,
+    /// Pemetaan offset instruksi -> nomor baris sumber untuk pelaporan galat VM.
+    pub tabel_baris: Vec<usize>,
 }
 
 impl HasilKompilasi {
@@ -50,6 +56,8 @@ impl Kompilator {
             instruksi: Vec::new(),
             konstanta: Vec::new(),
             tabel_simbol: TabelSimbol::new(),
+            tabel_baris: Vec::new(),
+            baris_sekarang: 1,
             loop_berhenti_patches: Vec::new(),
             loop_lanjut_target: Vec::new(),
         }
@@ -60,9 +68,16 @@ impl Kompilator {
             instruksi: Vec::new(),
             konstanta: k,
             tabel_simbol: ts,
+            tabel_baris: Vec::new(),
+            baris_sekarang: 1,
             loop_berhenti_patches: Vec::new(),
             loop_lanjut_target: Vec::new(),
         }
+    }
+
+    /// Memperbarui nomor baris yang sedang dikompilasi.
+    pub fn tetapkan_baris(&mut self, baris: usize) {
+        self.baris_sekarang = baris;
     }
 
     pub fn kompilasi(&mut self, program: &Program) -> Result<HasilKompilasi, GalatKompilasi> {
@@ -73,6 +88,7 @@ impl Kompilator {
             instruksi: self.instruksi.clone(),
             konstanta: self.konstanta.clone(),
             tabel_simbol: self.tabel_simbol.clone(),
+            tabel_baris: self.tabel_baris.clone(),
         })
     }
 
@@ -277,30 +293,78 @@ impl Kompilator {
     // ================================================================== //
 
     fn kompilasi_penugasan(&mut self, ps: &PenugasanExpression) -> Result<(), GalatKompilasi> {
+        let is_compound = ps.operator != "=";
+
         match &*ps.left {
             Expression::Pengenal(id) => {
                 let sim = self
                     .tabel_simbol
                     .selesaikan(&id.value)
                     .ok_or_else(|| GalatKompilasi::SimbolTidakTerdefinisi(id.value.clone()))?;
+
+                if is_compound {
+                    self.emit_ambil_simbol(&sim)?;
+                }
+
                 self.kompilasi_ekspresi(&ps.value)?;
+
+                if is_compound {
+                    match ps.operator.as_str() {
+                        "+=" => self.emit(OpCode::OpTambah, &[])?,
+                        "-=" => self.emit(OpCode::OpKurang, &[])?,
+                        "*=" => self.emit(OpCode::OpKali, &[])?,
+                        "/=" => self.emit(OpCode::OpBagi, &[])?,
+                        _ => return Err(GalatKompilasi::OperatorTidakDikenal(ps.operator.clone())),
+                    };
+                }
+
                 self.emit_tetapkan_simbol(&sim)?;
-                // OpTetapkan (Global/Lokal/Upvalue) di VM hanya melakukan PEEK,
-                // sehingga nilai penugasan tetap berada di puncak stack.
-                // Kita TIDAK perlu emit_ambil_simbol lagi.
             }
             Expression::Indeks(idx_expr) => {
                 self.kompilasi_ekspresi(&idx_expr.left)?;
                 self.kompilasi_ekspresi(&idx_expr.index)?;
-                self.kompilasi_ekspresi(&ps.value)?;
+
+                if is_compound {
+                    self.kompilasi_ekspresi(&idx_expr.left)?;
+                    self.kompilasi_ekspresi(&idx_expr.index)?;
+                    self.emit(OpCode::OpAmbilIndeks, &[])?;
+
+                    self.kompilasi_ekspresi(&ps.value)?;
+                    match ps.operator.as_str() {
+                        "+=" => self.emit(OpCode::OpTambah, &[])?,
+                        "-=" => self.emit(OpCode::OpKurang, &[])?,
+                        "*=" => self.emit(OpCode::OpKali, &[])?,
+                        "/=" => self.emit(OpCode::OpBagi, &[])?,
+                        _ => return Err(GalatKompilasi::OperatorTidakDikenal(ps.operator.clone())),
+                    };
+                } else {
+                    self.kompilasi_ekspresi(&ps.value)?;
+                }
+
                 self.emit(OpCode::OpTetapkanIndeks, &[])?;
-                // OpTetapkanIndeks di VM mem-pop 3 nilai lalu mem-push kembali nilainya.
             }
             Expression::Titik(titik) => {
                 self.kompilasi_ekspresi(&titik.left)?;
                 let idx = self.tambah_konstanta(Object::Str(titik.key.clone()))?;
                 self.emit(OpCode::OpTulisPuncak, &[idx])?;
-                self.kompilasi_ekspresi(&ps.value)?;
+
+                if is_compound {
+                    self.kompilasi_ekspresi(&titik.left)?;
+                    self.emit(OpCode::OpTulisPuncak, &[idx])?;
+                    self.emit(OpCode::OpAmbilIndeks, &[])?;
+
+                    self.kompilasi_ekspresi(&ps.value)?;
+                    match ps.operator.as_str() {
+                        "+=" => self.emit(OpCode::OpTambah, &[])?,
+                        "-=" => self.emit(OpCode::OpKurang, &[])?,
+                        "*=" => self.emit(OpCode::OpKali, &[])?,
+                        "/=" => self.emit(OpCode::OpBagi, &[])?,
+                        _ => return Err(GalatKompilasi::OperatorTidakDikenal(ps.operator.clone())),
+                    };
+                } else {
+                    self.kompilasi_ekspresi(&ps.value)?;
+                }
+
                 self.emit(OpCode::OpTetapkanIndeks, &[])?;
             }
             _ => {
@@ -313,9 +377,9 @@ impl Kompilator {
     }
 
     fn kompilasi_sisipan(&mut self, sis: &SisipanExpression) -> Result<(), GalatKompilasi> {
-        // Short-circuit: && dan ||
+        // Short-circuit: && / dan  dan  || / atau
         match sis.operator.as_str() {
-            "&&" => {
+            "&&" | "dan" => {
                 self.kompilasi_ekspresi(&sis.left)?;
                 let pos = self.emit_lompat_placeholder(OpCode::OpLompatJikaTidak)?;
                 self.kompilasi_ekspresi(&sis.right)?;
@@ -325,7 +389,7 @@ impl Kompilator {
                 self.patch_lompat(akhir, self.instruksi.len())?;
                 return Ok(());
             }
-            "||" => {
+            "||" | "atau" => {
                 self.kompilasi_ekspresi(&sis.left)?;
                 let pos = self.emit_lompat_placeholder(OpCode::OpLompatJikaBenar)?;
                 self.emit(OpCode::OpBuang, &[])?;
@@ -430,23 +494,27 @@ impl Kompilator {
         // Inisialisasi
         self.kompilasi_pernyataan(&utk.init)?;
 
-        let awal_loop = self.instruksi.len();
+        // Lompat ke kondisi pada iterasi pertama (melewati blok update)
+        let lompat_pertama = self.emit_lompat_placeholder(OpCode::OpLompat)?;
+
+        // Label Update: (target dari `lanjut` dan lompatan setelah body selesai)
+        let offset_update = self.instruksi.len();
         self.loop_berhenti_patches.push(Vec::new());
-        // lanjut di for = lompat ke update, bukan awal
-        // Kita gunakan placeholder dulu, nanti patch
-        self.loop_lanjut_target.push(0); // akan di-update setelah body
+        self.loop_lanjut_target.push(offset_update);
+
+        self.kompilasi_pernyataan(&utk.update)?;
+
+        // Label Kondisi:
+        let offset_kondisi = self.instruksi.len();
+        self.patch_lompat(lompat_pertama, offset_kondisi)?;
 
         self.kompilasi_ekspresi(&utk.condition)?;
         let pos_keluar = self.emit_lompat_placeholder(OpCode::OpLompatJikaTidak)?;
 
         self.kompilasi_blok_tanpa_nilai(&utk.body)?;
 
-        // Catat offset update untuk `lanjut`
-        let offset_update = self.instruksi.len();
-        *self.loop_lanjut_target.last_mut().unwrap() = offset_update;
-
-        self.kompilasi_pernyataan(&utk.update)?;
-        self.emit(OpCode::OpLompat, &[awal_loop])?;
+        // Lompat kembali ke update setelah body
+        self.emit(OpCode::OpLompat, &[offset_update])?;
 
         self.patch_lompat(pos_keluar, self.instruksi.len())?;
 
@@ -499,13 +567,14 @@ impl Kompilator {
             TabelSimbol::new_terlampir(self.tabel_simbol.clone()),
             self.konstanta.clone(),
         );
+        k_anak.baris_sekarang = self.baris_sekarang;
         for param in parameters {
             k_anak.tabel_simbol.definisikan(&param.value)?;
         }
-        for s in &body.statements {
-            k_anak.kompilasi_pernyataan(s)?;
-        }
+
+        k_anak.kompilasi_blok(body)?;
         k_anak.emit(OpCode::OpKembalikan, &[])?;
+
         let ups = k_anak.tabel_simbol.upvalues.clone();
         let f_obj = ObjekFungsiTerkompilasi {
             instruksi: k_anak.instruksi,
@@ -566,6 +635,11 @@ impl Kompilator {
     fn emit(&mut self, op: OpCode, operands: &[usize]) -> Result<usize, GalatKompilasi> {
         let pos = self.instruksi.len();
         encode(&mut self.instruksi, op, operands);
+        // Rekam pemetaan offset -> baris untuk setiap byte instruksi yang ditulis
+        let jumlah_baru = self.instruksi.len() - pos;
+        for _ in 0..jumlah_baru {
+            self.tabel_baris.push(self.baris_sekarang);
+        }
         Ok(pos)
     }
 

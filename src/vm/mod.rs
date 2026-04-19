@@ -56,6 +56,8 @@ pub struct VM {
     stack_coba: Vec<KonteksCoba>,
     upvalues_terbuka: Vec<Rc<RefCell<ObjekUpvalue>>>,
     pub terakhir_dibuang: Option<Object>,
+    /// Pemetaan offset bytecode -> nomor baris kode sumber.
+    tabel_baris: Vec<usize>,
 
     // ── Garbage Collector (Mark and Sweep) Registry ──
     gc_arrays: Vec<Rc<RefCell<Vec<Object>>>>,
@@ -89,6 +91,7 @@ impl VM {
             stack_coba: Vec::new(),
             upvalues_terbuka: Vec::new(),
             terakhir_dibuang: None,
+            tabel_baris: hasil.tabel_baris,
             gc_arrays: Vec::new(),
             gc_hashes: Vec::new(),
             gc_upvalues: Vec::new(),
@@ -98,19 +101,36 @@ impl VM {
         }
     }
 
+    /// Mengembalikan nomor baris kode sumber berdasarkan PC (instruction pointer) saat ini.
+    fn baris_dari_ip(&self) -> usize {
+        if let Some(frame) = self.frames.last() {
+            let ip = frame.ip.saturating_sub(1);
+            self.tabel_baris.get(ip).copied().unwrap_or(0)
+        } else {
+            0
+        }
+    }
+
     pub fn jalankan(&mut self) -> Result<Object, GalatVM> {
         let mut jumlah_dieksekusi = 0;
         while self.frame_aktif()?.ip < self.frame_aktif()?.closure.fungsi.instruksi.len() {
             if let Some(batas) = self.batas_instruksi {
                 if jumlah_dieksekusi >= batas {
-                    return Err(GalatVM::TipeOperanTidakValid("batas instruksi terlampaui".to_string()));
+                    return Err(GalatVM::TipeOperanTidakValid(
+                        "batas instruksi terlampaui".to_string(),
+                    ));
                 }
             }
-            if self.eksekusi_instruksi()? {
+            if self.eksekusi_instruksi().map_err(|e| {
+                let baris = self.baris_dari_ip();
+                GalatVM::DenganBaris {
+                    baris,
+                    sumber: Box::new(e),
+                }
+            })? {
                 break;
             }
             jumlah_dieksekusi += 1;
-            // Jalankan GC hanya di antara instruksi agar stack/state selalu konsisten
             self.cek_gc();
         }
         Ok(self.terakhir_dibuang.clone().unwrap_or(Object::Null))

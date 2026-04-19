@@ -72,16 +72,28 @@ pub enum TokenType {
 }
 
 /// Representasi sebuah token hasil analisis leksikal.
+///
+/// Setiap token menyimpan metadata posisi (baris dan kolom)
+/// untuk mendukung pelaporan galat yang akurat.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub type_: TokenType,
     pub literal: String,
+    /// Nomor baris (1-indexed) di mana token ini ditemukan.
+    pub baris: usize,
+    /// Nomor kolom (1-indexed) di mana token ini dimulai.
+    pub kolom: usize,
 }
 
 impl Token {
-    /// Membuat instance `Token` baru.
-    pub fn new(type_: TokenType, literal: String) -> Self {
-        Token { type_, literal }
+    /// Membuat instance `Token` baru dengan metadata posisi.
+    pub fn new(type_: TokenType, literal: String, baris: usize, kolom: usize) -> Self {
+        Token {
+            type_,
+            literal,
+            baris,
+            kolom,
+        }
     }
 
     /// Memeriksa apakah sebuah identifier merupakan kata kunci

@@ -126,14 +126,21 @@ impl Parser {
 
     fn peek_error(&mut self, expected: &TokenType) {
         let msg = format!(
-            "Kesalahan: diharapkan token {:?}, tetapi ditemukan {:?} (\"{}\")",
-            expected, self.peek_token.type_, self.peek_token.literal
+            "[baris {}, kolom {}] Kesalahan: diharapkan token {:?}, tetapi ditemukan {:?} (\"{}\")",
+            self.peek_token.baris,
+            self.peek_token.kolom,
+            expected,
+            self.peek_token.type_,
+            self.peek_token.literal
         );
         self.errors.push(msg);
     }
 
     fn no_prefix_parse_error(&mut self, t: &TokenType) {
-        let msg = format!("Kesalahan: tidak ada aturan parsing awalan untuk {:?}", t);
+        let msg = format!(
+            "[baris {}, kolom {}] Kesalahan: tidak ada aturan parsing awalan untuk {:?}",
+            self.cur_token.baris, self.cur_token.kolom, t
+        );
         self.errors.push(msg);
     }
 
