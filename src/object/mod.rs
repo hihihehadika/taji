@@ -1,6 +1,5 @@
 //! Modul Objek untuk bahasa Taji.
 
-use crate::ast::{BlokPernyataan, Pengenal};
 use crate::code::Bytecode;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -20,7 +19,6 @@ pub enum Object {
     Null,
     ReturnValue(Box<Object>),
     Error(String),
-    Fungsi(ObjekFungsi),
     FungsiVM(ObjekFungsiTerkompilasi),
     Closure(ObjekClosure),
     Upvalue(Rc<RefCell<ObjekUpvalue>>),
@@ -41,7 +39,7 @@ impl Object {
             Object::Null => "KOSONG",
             Object::ReturnValue(_) => "NILAI_KEMBALI",
             Object::Error(_) => "KESALAHAN",
-            Object::Fungsi(_) | Object::Closure(_) | Object::FungsiVM(_) => "FUNGSI",
+            Object::Closure(_) | Object::FungsiVM(_) => "FUNGSI",
             Object::Upvalue(_) => "UPVALUE",
             Object::Bawaan(_) => "FUNGSI_BAWAAN",
             Object::Array(_) => "DAFTAR",
@@ -81,7 +79,7 @@ impl fmt::Display for Object {
             Object::Null => write!(f, "kosong"),
             Object::ReturnValue(val) => write!(f, "{}", val),
             Object::Error(msg) => write!(f, "KESALAHAN: {}", msg),
-            Object::Fungsi(_) | Object::FungsiVM(_) | Object::Closure(_) => write!(f, "<fungsi>"),
+            Object::FungsiVM(_) | Object::Closure(_) => write!(f, "<fungsi>"),
             Object::Upvalue(_) => write!(f, "<upvalue>"),
             Object::Bawaan(_) => write!(f, "fungsi bawaan"),
             Object::Array(elements) => {
@@ -128,13 +126,6 @@ pub struct ObjekFungsiTerkompilasi {
     pub nama: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ObjekFungsi {
-    pub parameters: Vec<Pengenal>,
-    pub body: BlokPernyataan,
-    pub env: Lingkungan,
-}
-
 pub type FungsiBawaan = fn(Vec<Object>) -> Object;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -151,73 +142,5 @@ impl fmt::Display for KunciKamus {
             KunciKamus::Boolean(val) => write!(f, "{}", if *val { "benar" } else { "salah" }),
             KunciKamus::Str(val) => write!(f, "\"{}\"", val),
         }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Lingkungan (Scope Chain - Bridge untuk Evaluator Lama)
-// ═══════════════════════════════════════════════════════════
-
-#[derive(Debug, Clone)]
-pub struct Lingkungan {
-    store: Rc<RefCell<HashMap<String, Object>>>,
-    outer: Option<Box<Lingkungan>>,
-}
-
-impl Lingkungan {
-    pub fn new() -> Self {
-        Lingkungan {
-            store: Rc::new(RefCell::new(HashMap::new())),
-            outer: None,
-        }
-    }
-
-    pub fn new_enclosed(outer: Lingkungan) -> Self {
-        Lingkungan {
-            store: Rc::new(RefCell::new(HashMap::new())),
-            outer: Some(Box::new(outer)),
-        }
-    }
-
-    pub fn get(&self, name: &str) -> Option<Object> {
-        match self.store.borrow().get(name) {
-            Some(obj) => Some(obj.clone()),
-            None => match &self.outer {
-                Some(outer) => outer.get(name),
-                None => None,
-            },
-        }
-    }
-
-    pub fn set(&mut self, name: String, val: Object) -> Object {
-        self.store.borrow_mut().insert(name, val.clone());
-        val
-    }
-
-    pub fn update(&mut self, name: &str, val: Object) -> Option<Object> {
-        if self.store.borrow().contains_key(name) {
-            self.store
-                .borrow_mut()
-                .insert(name.to_string(), val.clone());
-            return Some(val);
-        }
-        if let Some(outer) = &mut self.outer {
-            return outer.update(name, val);
-        }
-        None
-    }
-
-    pub fn get_all_local(&self) -> HashMap<KunciKamus, Object> {
-        let mut result = HashMap::new();
-        for (key, val) in self.store.borrow().iter() {
-            result.insert(KunciKamus::Str(key.clone()), val.clone());
-        }
-        result
-    }
-}
-
-impl Default for Lingkungan {
-    fn default() -> Self {
-        Self::new()
     }
 }

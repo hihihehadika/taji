@@ -14,11 +14,19 @@ pub enum GalatVM {
     OpCodeBelumDiimplementasikan(String),
     TipeOperanTidakValid(String),
     SimbolTidakTerdefinisi(String),
-    JumlahArgumenSalah { diharapkan: usize, diterima: usize },
+    JumlahArgumenSalah {
+        diharapkan: usize,
+        diterima: usize,
+    },
     AksesIndeksGagal(String),
     IndeksDiLuarBatas(usize),
     KunciKamusTidakDitemukan,
     GalatDilempar(Object),
+    /// Pembungkus galat yang menyertakan nomor baris kode sumber.
+    DenganBaris {
+        baris: usize,
+        sumber: Box<GalatVM>,
+    },
 }
 
 impl fmt::Display for GalatVM {
@@ -49,6 +57,9 @@ impl fmt::Display for GalatVM {
             GalatVM::IndeksDiLuarBatas(i) => write!(f, "Indeks di luar batas: {}", i),
             GalatVM::KunciKamusTidakDitemukan => write!(f, "Kunci tidak ditemukan di Kamus"),
             GalatVM::GalatDilempar(obj) => write!(f, "{}", obj),
+            GalatVM::DenganBaris { baris, sumber } => {
+                write!(f, "[baris {}] {}", baris, sumber)
+            }
         }
     }
 }

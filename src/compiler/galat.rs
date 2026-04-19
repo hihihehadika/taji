@@ -5,10 +5,6 @@ use std::fmt;
 /// Semua kemungkinan kegagalan yang bisa terjadi saat kompilasi AST ke bytecode.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GalatKompilasi {
-    /// Node AST yang secara sintaksis valid tetapi belum di-support oleh fase
-    /// kompilasi saat ini.
-    SintaksisBelumdidukung(String),
-
     /// Operator yang ditemukan tidak dikenal oleh kompilator.
     OperatorTidakDikenal(String),
 
@@ -39,9 +35,6 @@ pub enum GalatKompilasi {
 impl fmt::Display for GalatKompilasi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GalatKompilasi::SintaksisBelumdidukung(msg) => {
-                write!(f, "GalatKompilasi: sintaksis belum didukung - {}", msg)
-            }
             GalatKompilasi::OperatorTidakDikenal(op) => {
                 write!(f, "GalatKompilasi: operator tidak dikenal '{}'", op)
             }

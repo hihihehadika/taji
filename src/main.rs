@@ -8,11 +8,11 @@ use std::fs;
 use std::io;
 use std::process;
 
-use taji::evaluator;
+use taji::compiler::Kompilator;
 use taji::lexer::Lexer;
-use taji::object::Lingkungan;
 use taji::parser::Parser;
 use taji::repl;
+use taji::vm::VM;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -45,7 +45,7 @@ fn run_file(filename: &str) {
     let content = match fs::read_to_string(filename) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("❌ Gagal membaca file '{}': {}", filename, e);
+            eprintln!("Gagal membaca file '{}': {}", filename, e);
             process::exit(1);
         }
     };
@@ -58,20 +58,32 @@ fn run_file(filename: &str) {
     let program = parser.parse_program();
 
     if !parser.errors.is_empty() {
-        eprintln!("⚠️  Ditemukan {} kesalahan parsing:", parser.errors.len());
+        eprintln!("Ditemukan {} kesalahan parsing:", parser.errors.len());
         for err in &parser.errors {
-            eprintln!("  → {}", err);
+            eprintln!("  -> {}", err);
         }
         process::exit(1);
     }
 
-    // Evaluasi
-    let mut env = Lingkungan::new();
-    let result = evaluator::eval(&program, &mut env);
+    // Kompilasi ke bytecode
+    let tabel = taji::bawaan::bikin_tabel_awal();
+    let mut kompilator = Kompilator::new_dengan_state(tabel, Vec::new());
+    let hasil = match kompilator.kompilasi(&program) {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("KESALAHAN KOMPILASI: {}", e);
+            process::exit(1);
+        }
+    };
 
-    // Tampilkan error jika ada
-    if result.is_error() {
-        eprintln!("❌ {}", result);
-        process::exit(1);
+    // Eksekusi di VM
+    let globals = taji::bawaan::bikin_globals_awal();
+    let mut vm = VM::new_dengan_globals(hasil, globals);
+    match vm.jalankan() {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("KESALAHAN VM: {}", e);
+            process::exit(1);
+        }
     }
 }

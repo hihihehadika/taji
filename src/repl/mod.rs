@@ -1,23 +1,17 @@
 //! Modul REPL (Read-Eval-Print Loop) untuk bahasa Taji.
 //!
-//! ## Strategi Eksekusi (Hybrid Mode - Fase 3 & 4)
+//! ## Strategi Eksekusi (100% Bytecode VM)
 //!
-//! Pipeline dua jalur:
-//! 1. Kompilasi ke bytecode → jalankan di TVM (dengan state persisten).
-//! 2. Jika sintaksis belum didukung VM → fallback ke evaluator tree-walking.
+//! Pipeline tunggal: Lexer -> Parser -> Kompilator -> VM.
+//! Tidak ada fallback ke evaluator tree-walking.
 //!
 //! State VM yang persisten lintas baris:
 //! - `tabel_simbol_vm`: simbol variabel yang sudah dideklarasikan di TVM.
 //! - `globals_vm`: nilai variabel global yang tersimpan di slot numerik.
-//!
-//! State evaluator yang persisten:
-//! - `env`: lingkungan tree-walking lama (untuk fitur yang belum di-VM).
 
-use crate::compiler::galat::GalatKompilasi;
 use crate::compiler::Kompilator;
-use crate::evaluator;
 use crate::lexer::Lexer;
-use crate::object::{Lingkungan, Object};
+use crate::object::Object;
 use crate::parser::Parser;
 use crate::vm::VM;
 use std::io;
@@ -27,7 +21,7 @@ const PROMPT: &str = "taji >> ";
 const BANNER: &str = r#"
   ======================================================
         TAJI - Bahasa Pemrograman Indonesia
-        Versi 0.5.0 [TVM-hybrid]
+        Versi 1.1.0 [TVM-murni]
         Ketik 'keluar' untuk berhenti.
   ======================================================
 "#;
@@ -38,9 +32,6 @@ where
     W: io::Write,
 {
     let _ = writeln!(output, "{}", BANNER);
-
-    // ---- State Evaluator (fallback) ----
-    let mut env = Lingkungan::new();
 
     // ---- State VM (persisten lintas baris) ----
     let mut tabel_simbol_vm = crate::bawaan::bikin_tabel_awal();
@@ -73,12 +64,12 @@ where
         if !p.errors.is_empty() {
             let _ = writeln!(output, "  Ditemukan kesalahan:");
             for err in &p.errors {
-                let _ = writeln!(output, "    → {}", err);
+                let _ = writeln!(output, "    -> {}", err);
             }
             continue;
         }
 
-        // ---- Coba jalur VM ----
+        // ---- Jalur VM (absolut, tanpa fallback) ----
         let mut kompilator =
             Kompilator::new_dengan_state(tabel_simbol_vm.clone(), konstanta_vm.clone());
         match kompilator.kompilasi(&program) {
@@ -92,7 +83,7 @@ where
                         match nilai {
                             Object::Null => {}
                             _ => {
-                                let _ = writeln!(output, "  → {}", nilai);
+                                let _ = writeln!(output, "  -> {}", nilai);
                             }
                         }
                         // Simpan globals dan konstanta yang diperbarui
@@ -105,20 +96,6 @@ where
                         tabel_simbol_vm = crate::bawaan::bikin_tabel_awal();
                         globals_vm = crate::bawaan::bikin_globals_awal();
                         konstanta_vm = Vec::new();
-                    }
-                }
-            }
-
-            // Sintaksis belum didukung VM → fallback ke evaluator
-            Err(GalatKompilasi::SintaksisBelumdidukung(_)) => {
-                let result = evaluator::eval(&program, &mut env);
-                match &result {
-                    Object::Null => {}
-                    Object::Error(msg) => {
-                        let _ = writeln!(output, "  KESALAHAN: {}", msg);
-                    }
-                    _ => {
-                        let _ = writeln!(output, "  → {}", result);
                     }
                 }
             }
