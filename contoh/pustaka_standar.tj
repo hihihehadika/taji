@@ -3,12 +3,12 @@
 
 // ─── Manipulasi Teks ─────────────────────────────────────
 
-misalkan kalimat = "Bahasa Pemrograman Taji v0.5.0";
+misalkan kalimat = "Bahasa Pemrograman Taji";
 
 cetak(huruf_besar(kalimat));
 cetak(huruf_kecil(kalimat));
 cetak(berisi(kalimat, "Taji"));
-cetak(ganti(kalimat, "v0.5.0", "v1.0.0"));
+cetak(ganti(kalimat, "Taji", "Indo"));
 cetak(potong(kalimat, 0, 6));
 
 misalkan kata = pisah(kalimat, " ");
