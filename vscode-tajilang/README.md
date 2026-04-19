@@ -3,7 +3,7 @@
 Dukungan resmi penyorotan sintaksis dan identitas visual untuk bahasa pemrograman Taji di Visual Studio Code.
 
 ## Fitur Utama
-- **Penyorotan Sintaksis**: Mewarnai kata kunci, fungsi bawaan, string, dan komentar sesuai standar Taji v1.1.0.
+- **Penyorotan Sintaksis**: Mewarnai kata kunci, fungsi bawaan, string, dan komentar sesuai standar Taji.
 - **Identitas Visual**: Ikon berkas khusus untuk setiap file berakhiran `.tj`.
 - **Snippets & Autocomplete**: Penutupan kurung otomatis dan dukungan struktur bahasa Indonesia.
 
@@ -19,4 +19,4 @@ Karena ekstensi ini didistribusikan secara manual dalam format `.vsix`, ikuti la
 7. Restart VS Code jika diperlukan.
 
 ---
-*Dikembangkan oleh dika — Bagian dari ekosistem Taji v1.1.0.*
+*Dikembangkan oleh dika — Bagian dari ekosistem Taji.*
