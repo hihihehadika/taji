@@ -9,7 +9,7 @@
 // 5. Http Request Bawaan (ambil_web)
 // =========================================================================
 
-misalkan berkas_db = "database_pegawai.json";
+misalkan berkas_db = "contoh/data/database_pegawai.json";
 
 // --- [ BAGIAN 1: SISTEM DATABASE ] ---
 

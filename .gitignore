@@ -6,6 +6,5 @@
 *.profraw
 .DS_Store
 
-# Ekstensi VSCode Terkompilasi
-*.vsix
-vscode-tajilang/*.vsix
+# File database runtime di root proyek (dipindah ke contoh/data/)
+/database_pegawai.json
