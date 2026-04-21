@@ -79,7 +79,7 @@ fn ekstrak_nama_berkas(url: &str) -> Option<String> {
     url_bersih
         .split('/')
         .filter(|s| !s.is_empty())
-        .last()
+        .next_back()
         .map(|s| s.to_string())
 }
 

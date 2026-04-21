@@ -1,0 +1,68 @@
+// Taji Crypto Tracker (Tahap 1)
+
+cetak("\x1b[36m==================================================\x1b[0m");
+cetak("\x1b[36m           TAJI CRYPTO TRACKER v1.1.1             \x1b[0m");
+cetak("\x1b[36m==================================================\x1b[0m");
+cetak("");
+
+misalkan koin_id = tanya("Masukkan ID koin (contoh: bitcoin, ethereum, solana): ");
+
+jika (koin_id == "") {
+    koin_id = "bitcoin";
+}
+
+cetak("\x1b[33mMengambil data untuk " + koin_id + "...\x1b[0m");
+
+misalkan url = "https://api.coingecko.com/api/v3/coins/" + koin_id;
+misalkan respon_json_str = ambil_web(url);
+
+jika (tipe(respon_json_str) == "KESALAHAN") {
+    cetak("\x1b[31mGagal mengambil data: " + respon_json_str + "\x1b[0m");
+} lainnya {
+    // Parsing JSON
+    misalkan data_koin = dari_json(respon_json_str);
+
+    jika (tipe(data_koin) == "KESALAHAN" atau data_koin == kosong) {
+        cetak("\x1b[31mGagal memparsing JSON atau koin tidak ditemukan!\x1b[0m");
+    } lainnya {
+    jika (tipe(data_koin["error"]) != "KOSONG") {
+        cetak("\x1b[31mGalat API: " + data_koin["error"] + "\x1b[0m");
+    } lainnya {
+        misalkan harga_usd = data_koin["market_data"]["current_price"]["usd"];
+        misalkan simbol = huruf_besar(data_koin["symbol"]);
+        misalkan nama = data_koin["name"];
+        
+        // Asumsi kurs IDR ~ 16000
+        misalkan harga_idr = harga_usd * 16000;
+        
+        cetak("");
+        cetak("\x1b[32m+------------------------------------------------+\x1b[0m");
+        cetak("\x1b[32m| DATA KRIPTO TERKINI                            |\x1b[0m");
+        cetak("\x1b[32m+------------------------------------------------+\x1b[0m");
+        cetak("\x1b[32m| Nama   : " + nama + " (" + simbol + ") \x1b[0m");
+        cetak("\x1b[32m| Harga  : $" + harga_usd + " \x1b[0m");
+        cetak("\x1b[32m| Kurs   : Rp " + harga_idr + " \x1b[0m");
+        cetak("\x1b[32m+------------------------------------------------+\x1b[0m");
+        
+        // Simpan log
+        // Kita coba baca dulu, jika gagal kembalikan array kosong
+        misalkan riwayat_lama_str = coba {
+            baca_berkas("contoh/data/riwayat_crypto.json")
+        } tangkap (g) {
+            "[]"
+        };
+        
+        misalkan riwayat = dari_json(riwayat_lama_str);
+        jika (tipe(riwayat) != "DAFTAR") {
+            riwayat = [];
+        }
+        
+        misalkan entri_baru = {"koin": nama, "simbol": simbol, "harga_usd": harga_usd, "waktu": waktu()};
+        dorong(riwayat, entri_baru);
+        
+        tulis_berkas("contoh/data/riwayat_crypto.json", ke_json(riwayat));
+        cetak("\x1b[36m[Log disimpan ke contoh/data/riwayat_crypto.json]\x1b[0m");
+    }
+}
+}
+

@@ -402,7 +402,14 @@ fn object_ke_json(obj: &Object) -> String {
             let mut res: Vec<String> = h
                 .borrow()
                 .iter()
-                .map(|(k, v)| format!("\"{}\":{}", k, object_ke_json(v)))
+                .map(|(k, v)| {
+                    let key_str = match k {
+                        crate::object::KunciKamus::Str(s) => s.clone(),
+                        crate::object::KunciKamus::Integer(i) => i.to_string(),
+                        crate::object::KunciKamus::Boolean(b) => b.to_string(),
+                    };
+                    format!("\"{}\":{}", key_str, object_ke_json(v))
+                })
                 .collect();
             res.sort(); // Deterministic for tests
             format!("{{{}}}", res.join(","))
@@ -440,10 +447,15 @@ fn object_ke_json_pretty(obj: &Object, level: usize) -> String {
             let mut res: Vec<String> = map
                 .iter()
                 .map(|(k, v)| {
+                    let key_str = match k {
+                        crate::object::KunciKamus::Str(s) => s.clone(),
+                        crate::object::KunciKamus::Integer(i) => i.to_string(),
+                        crate::object::KunciKamus::Boolean(b) => b.to_string(),
+                    };
                     format!(
                         "{}\"{}\": {}",
                         next_indent,
-                        k,
+                        key_str,
                         object_ke_json_pretty(v, level + 1)
                     )
                 })
