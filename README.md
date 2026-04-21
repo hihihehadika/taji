@@ -1,8 +1,8 @@
-# Taji (v1.1.0)
+# Taji (v1.1.1)
 
 <p align="center">
   <img src="https://img.shields.io/badge/bahasa-Rust-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/versi-1.1.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/versi-1.1.1-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/lisensi-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/tests-44%20passed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests">
   <img src="https://img.shields.io/badge/arsitektur-Bytecode%20VM-purple?style=for-the-badge" alt="Bytecode VM">
@@ -11,11 +11,11 @@
 
 **Bahasa pemrograman dengan sintaks Bahasa Indonesia Baku, dieksekusi oleh mesin virtual bytecode (TVM) yang ditulis sepenuhnya dalam Rust.**
 
-Taji adalah bahasa pemrograman yang dirancang agar terasa akrab bagi penutur Bahasa Indonesia, tanpa mengorbankan kemampuan atau keandalan. Pada versi 1.1.0, arsitektur Taji telah dimurnikan menjadi **100% Bytecode Virtual Machine** dengan pelaporan galat berbasis nomor baris dan kolom yang akurat.
+Taji adalah bahasa pemrograman yang dirancang agar terasa akrab bagi penutur Bahasa Indonesia, tanpa mengorbankan kemampuan atau keandalan. Pada versi 1.1.1, Taji memperkenalkan **Taji Package Manager (TPM)** untuk distribusi modul eksternal, melengkapi arsitektur **100% Bytecode Virtual Machine** yang telah dimurnikan.
 
 ---
 
-## Fitur Utama v1.1.0
+## Fitur Utama v1.1.1
 
 | Fitur | Deskripsi |
 | --- | --- |
@@ -26,7 +26,8 @@ Taji adalah bahasa pemrograman yang dirancang agar terasa akrab bagi penutur Bah
 | **Komentar Satu & Multi-Baris** | `// komentar` untuk satu baris, `/* komentar */` untuk blok multi-baris. |
 | **Manajemen Memori** | Skema hibrida Reference Counting + Mark-and-Sweep GC untuk mendeteksi dan menyelesaikan referensi siklik. |
 | **Pemrograman Fungsional** | Fungsi kelas pertama, closure, upvalue, dan fungsi bawaan tingkat tinggi: `petakan`, `saring`, `dorong`. |
-| **Sistem Modul** | Impor kode dari berkas eksternal dengan `masukkan("berkas.tj")`. |
+| **Sistem Modul** | Resolusi modul otomatis dengan prioritas: Jalur Eksplisit -> Direktori Lokal -> `taji_modul/`. |
+| **Taji Package Manager (TPM)** | Kelola modul eksternal dengan `taji pasang <URL>`. Pustaka disimpan secara lokal di folder `taji_modul/`. |
 | **Pustaka Standar** | Utilitas HTTP (`ambil_web`), manipulasi teks (`potong`, `format`, `panjang`), JSON (`ke_json`, `dari_json`), waktu, dan pembangkit acak. |
 
 ---
@@ -55,7 +56,7 @@ cargo run
 ```
   ======================================================
         TAJI - Bahasa Pemrograman Indonesia
-        Versi 1.1.0 [TVM-murni]
+        Versi 1.1.1 [TVM-murni]
         Ketik 'keluar' untuk berhenti.
   ======================================================
 
@@ -69,7 +70,13 @@ taji >> petakan(data, (x) => x * x)
 cargo run -- contoh/program.tj
 ```
 
-### 3. Menjalankan Pengujian
+### 3. Manajemen Paket (TPM)
+Pasang modul dari URL publik ke folder `taji_modul/` proyek Anda:
+```bash
+cargo run -- pasang https://raw.githubusercontent.com/user/repo/main/modul.tj
+```
+
+### 4. Menjalankan Pengujian
 ```bash
 cargo test
 ```
@@ -178,7 +185,8 @@ misalkan sapa = fungsi(nama) {
 };
 
 // berkas: utama.tj
-misalkan utilitas = masukkan("utilitas.tj");
+// Resolusi mencari: ./utilitas.tj -> ./taji_modul/utilitas.tj
+misalkan utilitas = masukkan("utilitas"); 
 cetak(utilitas["sapa"]("Dika"));
 ```
 
@@ -255,6 +263,7 @@ Kode Sumber (.tj)
 
 ## Riwayat Pembaruan
 
+- **v1.1.1 (21 April 2026)**: Implementasi **Taji Package Manager (TPM)**. Penambahan perintah `pasang` di CLI. Peningkatan sistem resolusi modul `masukkan()` dengan dukungan folder `taji_modul/` (sandboxed per-proyek).
 - **v1.1.0 (19 April 2026)**: Pemurnian ke 100% TVM. Implementasi pelacakan baris/kolom di Lexer & Token. Pelaporan galat parser (`[baris X, kolom Y]`) dan galat runtime VM (`[baris X]`). Penambahan operator logika kata `dan`, `atau`, `bukan`. Dukungan komentar multi-baris `/* ... */`.
 - **v1.0.0 (17 April 2026)**: Migrasi arsitektur ke Bytecode VM. Implementasi Mark-and-Sweep GC dan sandbox instruksi.
 - **v0.5.0 (9 April 2026)**: Penambahan HTTP bawaan (`ambil_web`) dan modul utilitas teks.

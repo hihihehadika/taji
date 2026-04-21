@@ -21,7 +21,7 @@ const PROMPT: &str = "taji >> ";
 const BANNER: &str = r#"
   ======================================================
         TAJI - Bahasa Pemrograman Indonesia
-        Versi 1.1.0 [TVM-murni]
+        Versi 1.1.1 [TVM-murni]
         Ketik 'keluar' untuk berhenti.
   ======================================================
 "#;
