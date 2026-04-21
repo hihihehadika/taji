@@ -6,5 +6,9 @@
 *.profraw
 .DS_Store
 
-# File database runtime di root proyek (dipindah ke contoh/data/)
+# Berkas database runtime di root proyek (dipindah ke contoh/data/)
 /database_pegawai.json
+
+# Folder pustaka yang dipasang via 'taji pasang' (tpm)
+# Bersifat lokal per-proyek dan tidak perlu disimpan di repositori
+taji_modul/

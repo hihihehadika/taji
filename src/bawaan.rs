@@ -573,28 +573,104 @@ fn builtin_acak(args: Vec<Object>) -> Object {
 
 fn builtin_masukkan(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Error("masukkan: butuh 1 argumen (jalur_berkas)".to_string());
+        return Object::Error("masukkan: butuh 1 argumen (nama_modul atau jalur_berkas)".to_string());
     }
-    let path = match &args[0] {
-        Object::Str(s) => s,
+    let masukan = match &args[0] {
+        Object::Str(s) => s.clone(),
         _ => return Object::Error("masukkan: argumen harus TEKS".to_string()),
     };
 
-    let content = match std::fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(e) => {
-            return Object::Error(format!("masukkan: gagal membaca berkas '{}': {}", path, e))
+    // Resolusi jalur berkas menggunakan sistem prioritas:
+    //
+    // 1. Jika argumen diakhiri '.tj' atau mengandung pemisah jalur, perlakukan
+    //    sebagai jalur eksplisit. Coba apa adanya dulu, lalu coba tambah '.tj'
+    //    jika belum ada ekstensi dan berkas tidak ditemukan.
+    //
+    // 2. Jika argumen adalah nama modul pendek (tanpa pemisah, tanpa ekstensi):
+    //    a. Cari di direktori lokal saat ini: `./nama.tj`
+    //    b. Cari di folder pustaka TPM:       `./taji_modul/nama.tj`
+    //
+    // 3. Jika semua gagal, lempar galat dengan panduan yang informatif.
+
+    let ada_pemisah = masukan.contains('/') || masukan.contains('\\');
+    let ada_ekstensi = masukan.ends_with(".tj");
+
+    let jalur_final = if ada_ekstensi || ada_pemisah {
+        // Jalur eksplisit — coba apa adanya terlebih dahulu
+        if std::path::Path::new(&masukan).exists() {
+            Some(masukan.clone())
+        } else if !ada_ekstensi {
+            // Berkas tidak ditemukan dan belum ada ekstensi — coba tambah .tj
+            let dengan_ekstensi = format!("{}.tj", masukan);
+            if std::path::Path::new(&dengan_ekstensi).exists() {
+                Some(dengan_ekstensi)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        // Nama modul pendek — resolusi otomatis dua lokasi
+        let nama_berkas = format!("{}.tj", masukan);
+
+        // Prioritas 1: Direktori lokal
+        let jalur_lokal = format!("./{}", nama_berkas);
+        if std::path::Path::new(&jalur_lokal).exists() {
+            Some(jalur_lokal)
+        } else {
+            // Prioritas 2: Folder pustaka TPM (taji_modul/)
+            let jalur_tpm = format!("./{}/{}", crate::tpm::DIREKTORI_MODUL, nama_berkas);
+            if std::path::Path::new(&jalur_tpm).exists() {
+                Some(jalur_tpm)
+            } else {
+                None
+            }
         }
     };
 
-    let lexer = crate::lexer::Lexer::new(&content);
+
+    let jalur = match jalur_final {
+        Some(j) => j,
+        None => {
+            // Bangun pesan galat yang informatif dan memandu pengguna
+            let nama_berkas = if masukan.ends_with(".tj") {
+                masukan.clone()
+            } else {
+                format!("{}.tj", masukan)
+            };
+            return Object::Error(format!(
+                "masukkan: modul '{}' tidak ditemukan.\n\
+                 Dicari di:\n\
+                 - ./{}\n\
+                 - ./{}/{}\n\
+                 Gunakan 'taji pasang <URL>' untuk memasang modul dari internet.",
+                masukan,
+                nama_berkas,
+                crate::tpm::DIREKTORI_MODUL,
+                nama_berkas
+            ));
+        }
+    };
+
+    let isi = match std::fs::read_to_string(&jalur) {
+        Ok(c) => c,
+        Err(e) => {
+            return Object::Error(format!(
+                "masukkan: gagal membaca berkas '{}': {}",
+                jalur, e
+            ))
+        }
+    };
+
+    let lexer = crate::lexer::Lexer::new(&isi);
     let mut parser = crate::parser::Parser::new(lexer);
     let program = parser.parse_program();
 
     if !parser.errors.is_empty() {
         return Object::Error(format!(
             "masukkan: galat sintaks di '{}':\n{}",
-            path,
+            jalur,
             parser.errors.join("\n")
         ));
     }
@@ -606,28 +682,37 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     );
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
-        Err(e) => return Object::Error(format!("masukkan: galat kompilasi di '{}': {}", path, e)),
+        Err(e) => {
+            return Object::Error(format!(
+                "masukkan: galat kompilasi di '{}': {}",
+                jalur, e
+            ))
+        }
     };
 
     // Eksekusi menggunakan VM
     let mut vm = crate::vm::VM::new_dengan_globals(hasil, crate::bawaan::bikin_globals_awal());
     if let Err(e) = vm.jalankan() {
-        return Object::Error(format!("masukkan: galat eksekusi di '{}': {}", path, e));
+        return Object::Error(format!(
+            "masukkan: galat eksekusi di '{}': {}",
+            jalur, e
+        ));
     }
 
-    // Ekstrak hasil eksekusi ke Kamus (Hash)
-    // Variabel global dari file impor diekspor
+    // Ekspor seluruh variabel global dari modul sebagai Kamus (Hash)
     let mut ekspor = std::collections::HashMap::new();
     let tabel = kompilator.tabel_simbol.ambil_store();
     let globals = vm.ambil_globals();
 
     for (nama, simbol) in tabel.iter() {
-        if simbol.lingkup == crate::compiler::LingkupSimbol::Global && simbol.indeks < globals.len()
+        if simbol.lingkup == crate::compiler::LingkupSimbol::Global
+            && simbol.indeks < globals.len()
         {
-            let val = &globals[simbol.indeks];
-            ekspor.insert(crate::object::KunciKamus::Str(nama.clone()), val.clone());
+            let nilai = &globals[simbol.indeks];
+            ekspor.insert(crate::object::KunciKamus::Str(nama.clone()), nilai.clone());
         }
     }
 
     Object::Hash(Rc::new(RefCell::new(ekspor)))
 }
+

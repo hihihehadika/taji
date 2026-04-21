@@ -1,8 +1,9 @@
 /// Entry point untuk bahasa pemrograman Taji (.tj).
 ///
-/// Mendukung dua mode operasi:
+/// Mendukung tiga mode operasi:
 /// - **Mode Interaktif (REPL):** Jalankan `taji` tanpa argumen.
-/// - **Mode File:** Jalankan `taji script.tj` untuk mengeksekusi file.
+/// - **Mode Berkas:** Jalankan `taji script.tj` untuk mengeksekusi berkas.
+/// - **Mode TPM:** Jalankan `taji pasang <URL>` untuk memasang modul eksternal.
 use std::env;
 use std::fs;
 use std::io;
@@ -12,6 +13,7 @@ use taji::compiler::Kompilator;
 use taji::lexer::Lexer;
 use taji::parser::Parser;
 use taji::repl;
+use taji::tpm;
 use taji::vm::VM;
 
 fn main() {
@@ -23,42 +25,77 @@ fn main() {
             repl::start(io::stdin().lock(), io::stdout().lock());
         }
 
-        // Satu argumen → jalankan file .tj
+        // Satu argumen → jalankan berkas .tj
         2 => {
-            let filename = &args[1];
-            run_file(filename);
+            let argumen = &args[1];
+            // Periksa jika pengguna hanya mengetik 'taji pasang' tanpa URL
+            if argumen == "pasang" {
+                eprintln!("tpm: URL modul tidak disertakan.");
+                eprintln!();
+                tpm::tampilkan_bantuan_tpm();
+                process::exit(1);
+            }
+            run_file(argumen);
+        }
+
+        // Dua argumen → bisa jadi perintah TPM atau salah penggunaan
+        3 => {
+            let perintah = &args[1];
+            let nilai = &args[2];
+
+            if perintah == "pasang" {
+                // Mode TPM: unduh dan pasang modul dari URL
+                match tpm::pasang_modul(nilai) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!("KESALAHAN TPM: {}", e);
+                        process::exit(1);
+                    }
+                }
+            } else {
+                eprintln!("Perintah tidak dikenal: '{} {}'", perintah, nilai);
+                eprintln!();
+                tampilkan_bantuan();
+                process::exit(1);
+            }
         }
 
         // Argumen tidak valid
         _ => {
-            eprintln!("Penggunaan:");
-            eprintln!("  taji           → Mode interaktif (REPL)");
-            eprintln!("  taji <file.tj> → Jalankan file script");
+            tampilkan_bantuan();
             process::exit(1);
         }
     }
 }
 
-/// Membaca dan mengeksekusi file kode Taji (.tj).
+/// Menampilkan panduan penggunaan ke terminal.
+fn tampilkan_bantuan() {
+    eprintln!("Penggunaan:");
+    eprintln!("  taji                     Masuk mode interaktif (REPL)");
+    eprintln!("  taji <berkas.tj>          Jalankan berkas skrip Taji");
+    eprintln!("  taji pasang <URL>         Unduh dan pasang modul eksternal");
+}
+
+/// Membaca dan mengeksekusi berkas kode Taji (.tj).
 fn run_file(filename: &str) {
     // Baca isi file
-    let content = match fs::read_to_string(filename) {
+    let isi = match fs::read_to_string(filename) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Gagal membaca file '{}': {}", filename, e);
+            eprintln!("Gagal membaca berkas '{}': {}", filename, e);
             process::exit(1);
         }
     };
 
     // Lexing
-    let lexer = Lexer::new(&content);
+    let lexer = Lexer::new(&isi);
 
-    // Parsing
+    // Penguraian (Parsing)
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
     if !parser.errors.is_empty() {
-        eprintln!("Ditemukan {} kesalahan parsing:", parser.errors.len());
+        eprintln!("Ditemukan {} kesalahan penguraian:", parser.errors.len());
         for err in &parser.errors {
             eprintln!("  -> {}", err);
         }

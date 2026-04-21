@@ -1,0 +1,3 @@
+// Pengujian galat: modul tidak ada
+misalkan m = masukkan("modul_tidak_ada_sama_sekali");
+cetak(m);

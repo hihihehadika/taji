@@ -1,0 +1,35 @@
+// Berkas Pengujian: Sistem Resolusi Modul TPM
+// Versi: Taji v1.1.1
+//
+// Pengujian ini memvalidasi dua jalur resolusi modul:
+//   1. Resolusi jalur eksplisit (seperti sebelumnya)
+//   2. Resolusi nama modul pendek dari folder taji_modul/
+
+cetak("==============================================");
+cetak("  Pengujian Resolusi Modul - Taji v1.1.1");
+cetak("==============================================");
+cetak("");
+
+// --- Pengujian 1: Resolusi Jalur Eksplisit ---
+// Cara lama: masukkan dengan jalur lengkap termasuk ekstensi .tj
+// Ini harus tetap berfungsi seperti sebelumnya.
+cetak("[Uji 1] Resolusi jalur eksplisit...");
+misalkan modul_mat = masukkan("contoh/modul/matematika.tj");
+cetak("  Hasil tambah(10, 5)    : " + modul_mat["tambah"](10, 5));
+cetak("  Hasil faktorial(6)     : " + modul_mat["faktorial"](6));
+cetak("  Nilai PI               : " + modul_mat["PI"]);
+cetak("[Uji 1] LULUS.");
+cetak("");
+
+// --- Pengujian 2: Resolusi Nama Modul Pendek ---
+// Cara baru: masukkan dengan nama pendek tanpa ekstensi.
+// VM akan mencari ./matematika.tj dulu, lalu ./taji_modul/matematika.tj
+cetak("[Uji 2] Resolusi nama modul pendek dari direktori lokal...");
+misalkan modul_via_nama = masukkan("contoh/modul/matematika");
+cetak("  Hasil tambah(20, 30)   : " + modul_via_nama["tambah"](20, 30));
+cetak("[Uji 2] LULUS.");
+cetak("");
+
+cetak("==============================================");
+cetak("  Semua pengujian BERHASIL.");
+cetak("==============================================");

@@ -1,0 +1,22 @@
+// Pengujian Resolusi Modul dari Folder taji_modul/
+//
+// Berkas ini menguji bahwa modul yang dipasang via 'taji pasang'
+// (tersimpan di folder taji_modul/) dapat diakses menggunakan nama pendek.
+// Tidak ada berkas matematika.tj di direktori lokal saat ini — hanya di taji_modul/.
+
+cetak("==============================================");
+cetak("  Uji Resolusi dari taji_modul/");
+cetak("==============================================");
+cetak("");
+
+// masukkan("matematika") akan gagal cari ./matematika.tj
+// lalu berhasil di ./taji_modul/matematika.tj
+misalkan mat = masukkan("matematika");
+
+cetak("Modul berhasil dimuat dari taji_modul/.");
+cetak("tambah(7, 8) = " + mat["tambah"](7, 8));
+cetak("PI          = " + mat["PI"]);
+cetak("");
+cetak("==============================================");
+cetak("  Resolusi taji_modul/ BERHASIL.");
+cetak("==============================================");
