@@ -209,7 +209,8 @@ taji/
 |- src/
 |   |- main.rs              -- Titik masuk: mode file & REPL
 |   |- lib.rs               -- Deklarasi modul publik
-|   |- bawaan.rs            -- Fungsi bawaan (built-in functions)
+|   |- bawaan.rs            -- Fungsi bawaan (built-in functions) & Resolusi Modul
+|   |- tpm.rs               -- Taji Package Manager: Mesin pengunduh modul
 |   |- token/
 |   |   `- mod.rs           -- Definisi Token (type, literal, baris, kolom)
 |   |- lexer/
