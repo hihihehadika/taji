@@ -9,12 +9,12 @@ use std::fs;
 use std::io;
 use std::process;
 
-use taji::compiler::Kompilator;
-use taji::lexer::Lexer;
-use taji::parser::Parser;
-use taji::repl;
-use taji::tpm;
-use taji::vm::VM;
+use taji_lib::compiler::Kompilator;
+use taji_lib::lexer::Lexer;
+use taji_lib::parser::Parser;
+use taji_lib::repl;
+use taji_lib::tpm;
+use taji_lib::vm::VM;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -103,7 +103,7 @@ fn run_file(filename: &str) {
     }
 
     // Kompilasi ke bytecode
-    let tabel = taji::bawaan::bikin_tabel_awal();
+    let tabel = taji_lib::bawaan::bikin_tabel_awal();
     let mut kompilator = Kompilator::new_dengan_state(tabel, Vec::new());
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
@@ -114,7 +114,7 @@ fn run_file(filename: &str) {
     };
 
     // Eksekusi di VM
-    let globals = taji::bawaan::bikin_globals_awal();
+    let globals = taji_lib::bawaan::bikin_globals_awal();
     let mut vm = VM::new_dengan_globals(hasil, globals);
     match vm.jalankan() {
         Ok(_) => {}

@@ -1,5 +1,6 @@
-// File ini adalah contoh modul yang bisa dipanggil oleh file lain
-cetak("[Matematika.tj dimuat...]");
+// Modul Matematika — dapat dimuat via masukkan("contoh/modul/matematika.tj")
+// Mengekspor: PI, tambah(a, b), faktorial(n)
+// Tidak ada efek samping di level teratas.
 
 misalkan PI = 3.14159;
 
@@ -7,12 +8,15 @@ misalkan tambah = fungsi(a, b) {
     kembalikan a + b;
 };
 
+// Rekursi berfungsi karena VM pemanggil kini telah di-merger dengan globals
+// modul ini, sehingga faktorial(n-1) dapat menemukan dirinya sendiri
+// lewat OpAmbilGlobal dengan indeks yang benar.
 misalkan faktorial = fungsi(n) {
-    jika (n <= 1) { kembalikan 1; };
+    jika (n <= 1) {
+        kembalikan 1;
+    };
     kembalikan n * faktorial(n - 1);
 };
 
-// Semua variabel dan fungsi di atas secara otomatis akan 
-// dikembalikan sebagai Kamus saat file ini dipanggil.
-
-cetak("Test lokal faktorial(5): " + faktorial(5));
+// Semua variabel dan fungsi di atas secara otomatis akan
+// dikembalikan sebagai Kamus saat file ini dipanggil via masukkan().

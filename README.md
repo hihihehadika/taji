@@ -264,7 +264,7 @@ Kode Sumber (.tj)
 
 ## Riwayat Pembaruan
 
-- **v1.1.1 (21 April 2026)**: Implementasi **Taji Package Manager (TPM)**. Penambahan perintah `pasang` di CLI. Peningkatan sistem resolusi modul `masukkan()` dengan dukungan folder `taji_modul/` (sandboxed per-proyek).
+- **v1.1.1 (29 April 2026)**: Perbaikan arsitektur kritis sistem modul. Instruksi `masukkan()` direfaktor dari pemanggilan builtin menjadi **opcode VM native `OpMasukkan`**, memungkinkan fungsi-fungsi yang diekspor modul (termasuk rekursi) untuk berjalan dengan benar di VM pemanggil melalui mekanisme merger globals dan pool konstanta per-Closure. Penambahan Taji Package Manager (TPM) dan perintah `pasang` di CLI.
 - **v1.1.0 (19 April 2026)**: Pemurnian ke 100% TVM. Implementasi pelacakan baris/kolom di Lexer & Token. Pelaporan galat parser (`[baris X, kolom Y]`) dan galat runtime VM (`[baris X]`). Penambahan operator logika kata `dan`, `atau`, `bukan`. Dukungan komentar multi-baris `/* ... */`.
 - **v1.0.0 (17 April 2026)**: Migrasi arsitektur ke Bytecode VM. Implementasi Mark-and-Sweep GC dan sandbox instruksi.
 - **v0.5.0 (9 April 2026)**: Penambahan HTTP bawaan (`ambil_web`) dan modul utilitas teks.

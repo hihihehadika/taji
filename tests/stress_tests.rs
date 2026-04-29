@@ -1,7 +1,7 @@
-use taji::compiler::Kompilator;
-use taji::lexer::Lexer;
-use taji::parser::Parser;
-use taji::vm::VM;
+use taji_lib::compiler::Kompilator;
+use taji_lib::lexer::Lexer;
+use taji_lib::parser::Parser;
+use taji_lib::vm::VM;
 
 #[test]
 fn test_stress_deeply_nested_expressions() {
@@ -26,12 +26,12 @@ fn test_stress_deeply_nested_expressions() {
         panic!("Parser errors on deep nesting: {:?}", parser.errors);
     }
 
-    let tabel = taji::bawaan::bikin_tabel_awal();
+    let tabel = taji_lib::bawaan::bikin_tabel_awal();
     let hasil = Kompilator::new_dengan_state(tabel, Vec::new())
         .kompilasi(&program)
         .expect("Kompilasi gagal");
 
-    let mut vm = VM::new_dengan_globals(hasil, taji::bawaan::bikin_globals_awal());
+    let mut vm = VM::new_dengan_globals(hasil, taji_lib::bawaan::bikin_globals_awal());
     vm.jalankan().expect("VM gagal");
 }
 
@@ -54,11 +54,11 @@ fn test_stress_massive_array_allocation() {
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
-    let hasil = Kompilator::new_dengan_state(taji::bawaan::bikin_tabel_awal(), Vec::new())
+    let hasil = Kompilator::new_dengan_state(taji_lib::bawaan::bikin_tabel_awal(), Vec::new())
         .kompilasi(&program)
         .expect("Kompilasi gagal");
 
-    let mut vm = VM::new_dengan_globals(hasil, taji::bawaan::bikin_globals_awal());
+    let mut vm = VM::new_dengan_globals(hasil, taji_lib::bawaan::bikin_globals_awal());
     vm.jalankan().expect("VM gagal");
 
     // Nilai terakhir di stack (panjang array)
@@ -85,10 +85,10 @@ fn test_stress_closure_leak_check() {
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
-    let hasil = Kompilator::new_dengan_state(taji::bawaan::bikin_tabel_awal(), Vec::new())
+    let hasil = Kompilator::new_dengan_state(taji_lib::bawaan::bikin_tabel_awal(), Vec::new())
         .kompilasi(&program)
         .expect("Kompilasi gagal");
 
-    let mut vm = VM::new_dengan_globals(hasil, taji::bawaan::bikin_globals_awal());
+    let mut vm = VM::new_dengan_globals(hasil, taji_lib::bawaan::bikin_globals_awal());
     vm.jalankan().expect("VM gagal");
 }

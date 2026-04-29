@@ -124,6 +124,11 @@ pub struct ObjekFungsiTerkompilasi {
     pub jumlah_parameter: usize,
     pub jumlah_lokal: usize,
     pub nama: Option<String>,
+    /// Pool konstanta lokal milik fungsi ini. Jika `Some`, VM menggunakan
+    /// pool ini untuk OpTulisPuncak alih-alih pool konstanta VM global.
+    /// Digunakan oleh fungsi yang diekspor via masukkan() agar tidak
+    /// berkonflik dengan pool konstanta skrip pemanggil.
+    pub pool_konstanta_lokal: Option<Vec<Object>>,
 }
 
 pub type FungsiBawaan = fn(Vec<Object>) -> Object;

@@ -1,7 +1,7 @@
 //! Pengujian unit untuk Lexer bahasa Taji.
 
-use taji::lexer::Lexer;
-use taji::token::TokenType;
+use taji_lib::lexer::Lexer;
+use taji_lib::token::TokenType;
 
 #[test]
 fn test_next_token() {

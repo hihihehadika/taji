@@ -193,6 +193,16 @@ pub enum OpCode {
     /// Membuang `KonteksCoba` terdalam dari `stack_coba`, lalu
     /// melompat ke offset setelah seluruh blok coba/tangkap.
     OpAkhiriCoba = 0x82,
+    /// Muat dan eksekusi modul eksternal, merger globals modul ke globals
+    /// VM pemanggil, kembalikan kamus ekspor ke puncak stack.
+    ///
+    /// Instruksi ini menggantikan pemanggilan builtin `masukkan()` agar
+    /// fungsi-fungsi yang diekspor dari modul dapat memanggil satu sama
+    /// lain menggunakan globals VM pemanggil yang sudah di-merger.
+    ///
+    /// Stack sebelum : [..., jalur: Str]
+    /// Stack sesudah : [..., kamus_ekspor: Kamus]
+    OpMasukkan = 0x83,
     // -- SENTINEL -- Jangan menempatkan opcode di bawah baris ini. -- //
 }
 
@@ -240,6 +250,7 @@ impl TryFrom<u8> for OpCode {
             0x80 => Ok(Self::OpLemparkan),
             0x81 => Ok(Self::OpCoba),
             0x82 => Ok(Self::OpAkhiriCoba),
+            0x83 => Ok(Self::OpMasukkan),
             b => Err(b),
         }
     }
@@ -512,6 +523,13 @@ pub const DEFINISI_OPCODE: &[(OpCode, DefinisiOpCode)] = &[
         DefinisiOpCode {
             nama: "OpAkhiriCoba",
             lebar_operand: &[2],
+        },
+    ),
+    (
+        OpCode::OpMasukkan,
+        DefinisiOpCode {
+            nama: "OpMasukkan",
+            lebar_operand: &[],
         },
     ),
 ];

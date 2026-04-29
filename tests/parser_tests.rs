@@ -1,6 +1,6 @@
 //! Pengujian unit untuk Parser bahasa Taji.
-use taji::lexer::Lexer;
-use taji::parser::Parser;
+use taji_lib::lexer::Lexer;
+use taji_lib::parser::Parser;
 
 // ═══════════════════════════════════════════════════════════
 //  Test: Pernyataan Misalkan

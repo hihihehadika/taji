@@ -2,9 +2,19 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::{self, Write};
 use std::rc::Rc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::{self, Write};
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+use js_sys;
 
 use crate::object::{KunciKamus, Object};
 
@@ -88,7 +98,7 @@ pub fn bikin_globals_awal() -> Vec<Object> {
 
 fn builtin_cetak(args: Vec<Object>) -> Object {
     for arg in &args {
-        println!("{}", arg);
+        crate::keluaran::cetak_keluar(&format!("{}", arg));
     }
     Object::Null
 }
@@ -176,6 +186,7 @@ fn builtin_sisa(args: Vec<Object>) -> Object {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_tanya(args: Vec<Object>) -> Object {
     if !args.is_empty() {
         print!("{}", args[0]);
@@ -188,6 +199,28 @@ fn builtin_tanya(args: Vec<Object>) -> Object {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = window, js_name = prompt)]
+    fn window_prompt(message: &str) -> Option<String>;
+}
+
+#[cfg(target_arch = "wasm32")]
+fn builtin_tanya(args: Vec<Object>) -> Object {
+    let msg = if !args.is_empty() {
+        args[0].to_string()
+    } else {
+        "".to_string()
+    };
+    
+    match window_prompt(&msg) {
+        Some(teks) => Object::Str(teks),
+        None => Object::Str("".to_string()),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_waktu(_: Vec<Object>) -> Object {
     Object::Integer(
         SystemTime::now()
@@ -195,6 +228,11 @@ fn builtin_waktu(_: Vec<Object>) -> Object {
             .unwrap()
             .as_millis() as i64,
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+fn builtin_waktu(_: Vec<Object>) -> Object {
+    Object::Integer(js_sys::Date::now() as i64)
 }
 
 fn builtin_teks(args: Vec<Object>) -> Object {
@@ -252,6 +290,7 @@ fn builtin_gabung(args: Vec<Object>) -> Object {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_baca_berkas(args: Vec<Object>) -> Object {
     if args.is_empty() {
         return Object::Error("gagal membaca berkas: butuh jalur".to_string());
@@ -262,6 +301,40 @@ fn builtin_baca_berkas(args: Vec<Object>) -> Object {
     }
 }
 
+// Implementasi VFS (Virtual File System) berbasis localStorage untuk peramban
+#[cfg(target_arch = "wasm32")]
+fn builtin_baca_berkas(args: Vec<Object>) -> Object {
+    if args.is_empty() {
+        return Object::Error("baca_berkas: butuh jalur berkas".to_string());
+    }
+    let jalur = args[0].to_string().replace('"', "\\\"")
+        .replace('`', "\\`");
+    let skrip = format!(
+        "(function() {{ \
+            try {{ \
+                var d = localStorage.getItem('taji_vfs:{jalur}'); \
+                return d !== null ? d : '__TAJI_VFS_TIDAK_ADA__'; \
+            }} catch(e) {{ \
+                return '__TAJI_VFS_GALAT__:' + e.message; \
+            }} \
+        }})()"
+    );
+    match js_sys::eval(&skrip) {
+        Ok(val) => match val.as_string() {
+            Some(s) if s == "__TAJI_VFS_TIDAK_ADA__" => {
+                Object::Error(format!("baca_berkas: '{}' tidak ditemukan di VFS", args[0]))
+            }
+            Some(s) if s.starts_with("__TAJI_VFS_GALAT__:") => {
+                Object::Error(format!("baca_berkas gagal: {}", &s[19..]))
+            }
+            Some(s) => Object::Str(s),
+            None => Object::Error("baca_berkas: gagal membaca VFS".to_string()),
+        },
+        Err(_) => Object::Error("baca_berkas: error mengakses localStorage".to_string()),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_tulis_berkas(args: Vec<Object>) -> Object {
     if args.len() < 2 {
         return Object::Error("gagal menulis berkas: butuh jalur dan isi".to_string());
@@ -269,6 +342,42 @@ fn builtin_tulis_berkas(args: Vec<Object>) -> Object {
     match std::fs::write(args[0].to_string(), args[1].to_string()) {
         Ok(_) => Object::Str("berkas berhasil menulis".to_string()),
         Err(e) => Object::Error(format!("gagal menulis berkas: {}", e)),
+    }
+}
+
+// Menulis ke VFS (localStorage) di peramban
+#[cfg(target_arch = "wasm32")]
+fn builtin_tulis_berkas(args: Vec<Object>) -> Object {
+    if args.len() < 2 {
+        return Object::Error("tulis_berkas: butuh jalur dan isi".to_string());
+    }
+    let jalur = args[0].to_string().replace('"', "\\\"").replace('`', "\\`");
+    // Enkode isi sebagai JSON string untuk menghindari masalah escaping
+    let isi_json = match serde_json::to_string(&args[1].to_string()) {
+        Ok(j) => j,
+        Err(e) => return Object::Error(format!("tulis_berkas: gagal enkode isi: {}", e)),
+    };
+    let skrip = format!(
+        "(function() {{ \
+            try {{ \
+                localStorage.setItem('taji_vfs:{jalur}', JSON.parse({isi_json})); \
+                return '__TAJI_VFS_OK__'; \
+            }} catch(e) {{ \
+                return '__TAJI_VFS_GALAT__:' + e.message; \
+            }} \
+        }})()"
+    );
+    match js_sys::eval(&skrip) {
+        Ok(val) => match val.as_string() {
+            Some(s) if s == "__TAJI_VFS_OK__" => {
+                Object::Str("berkas berhasil ditulis ke VFS peramban".to_string())
+            }
+            Some(s) if s.starts_with("__TAJI_VFS_GALAT__:") => {
+                Object::Error(format!("tulis_berkas gagal: {}", &s[19..]))
+            }
+            _ => Object::Str("berkas berhasil ditulis ke VFS peramban".to_string()),
+        },
+        Err(_) => Object::Error("tulis_berkas: error mengakses localStorage".to_string()),
     }
 }
 
@@ -467,6 +576,7 @@ fn object_ke_json_pretty(obj: &Object, level: usize) -> String {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_ambil_web(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error("jumlah argumen salah".to_string());
@@ -485,6 +595,46 @@ fn builtin_ambil_web(args: Vec<Object>) -> Object {
             }
         }
         Err(e) => Object::Error(format!("gagal mengambil URL: {}", e)),
+    }
+}
+
+// Implementasi ambil_web via XMLHttpRequest sinkron untuk peramban
+#[cfg(target_arch = "wasm32")]
+fn builtin_ambil_web(args: Vec<Object>) -> Object {
+    if args.is_empty() {
+        return Object::Error("ambil_web: butuh minimal 1 argumen (URL)".to_string());
+    }
+    let url_mentah = args[0].to_string();
+    // Enkode URL sebagai JSON string untuk menghindari injeksi
+    let url_json = match serde_json::to_string(&url_mentah) {
+        Ok(j) => j,
+        Err(_) => return Object::Error("ambil_web: URL tidak valid".to_string()),
+    };
+    let skrip = format!(
+        "(function() {{ \
+            try {{ \
+                var xhr = new XMLHttpRequest(); \
+                xhr.open('GET', {url_json}, false); \
+                xhr.send(null); \
+                if (xhr.status >= 200 && xhr.status < 300) {{ \
+                    return xhr.responseText; \
+                }} else {{ \
+                    return '__TAJI_HTTP_GALAT__:HTTP ' + xhr.status; \
+                }} \
+            }} catch(e) {{ \
+                return '__TAJI_HTTP_GALAT__:' + e.message; \
+            }} \
+        }})()"
+    );
+    match js_sys::eval(&skrip) {
+        Ok(val) => match val.as_string() {
+            Some(s) if s.starts_with("__TAJI_HTTP_GALAT__:") => {
+                Object::Error(format!("ambil_web gagal: {}", &s[20..]))
+            }
+            Some(s) => Object::Str(s),
+            None => Object::Error("ambil_web: respons kosong atau tidak valid".to_string()),
+        },
+        Err(_) => Object::Error("ambil_web: gagal menjalankan permintaan HTTP".to_string()),
     }
 }
 
@@ -548,6 +698,7 @@ fn builtin_berisi(args: Vec<Object>) -> Object {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_jeda(args: Vec<Object>) -> Object {
     if let Some(Object::Integer(ms)) = args.first() {
         if *ms < 0 {
@@ -558,10 +709,16 @@ fn builtin_jeda(args: Vec<Object>) -> Object {
     Object::Null
 }
 
+#[cfg(target_arch = "wasm32")]
+fn builtin_jeda(_args: Vec<Object>) -> Object {
+    Object::Null
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_acak(args: Vec<Object>) -> Object {
     use std::time::SystemTime;
     let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
+        .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos() as u64;
     let mut r = seed;
@@ -577,12 +734,30 @@ fn builtin_acak(args: Vec<Object>) -> Object {
             if max < min {
                 return Object::Error("rentang acak tidak valid".to_string());
             }
-            return Object::Integer(min + (r % (max - min) as u64) as i64);
+            return Object::Integer(min + (r % (*max - *min) as u64) as i64);
         }
     }
-    Object::Integer((r >> 1) as i64) // Avoid negative
+    Object::Integer((r >> 1) as i64)
 }
 
+#[cfg(target_arch = "wasm32")]
+fn builtin_acak(args: Vec<Object>) -> Object {
+    let r = js_sys::Math::random();
+    if args.len() == 2 {
+        if let (Object::Integer(min), Object::Integer(max)) = (&args[0], &args[1]) {
+            if min == max {
+                return Object::Integer(*min);
+            }
+            if max < min {
+                return Object::Error("rentang acak tidak valid".to_string());
+            }
+            return Object::Integer(min + (r * (*max - *min) as f64) as i64);
+        }
+    }
+    Object::Integer((r * i64::MAX as f64) as i64)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn builtin_masukkan(args: Vec<Object>) -> Object {
     if args.len() != 1 {
         return Object::Error("masukkan: butuh 1 argumen (nama_modul atau jalur_berkas)".to_string());
@@ -728,3 +903,157 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     Object::Hash(Rc::new(RefCell::new(ekspor)))
 }
 
+
+// ============================================================
+// Registri Modul Bawaan (Tertanam di WASM Binary)
+// ============================================================
+// Modul ini di-embed saat kompilasi sehingga tersedia langsung
+// di peramban tanpa perlu akses sistem berkas.
+#[cfg(target_arch = "wasm32")]
+mod registri_modul {
+    const MATEMATIKA: &str = include_str!("../contoh/modul/matematika.tj");
+    const TEKS: &str      = include_str!("../contoh/modul/teks.tj");
+    const KOLEKSI: &str   = include_str!("../contoh/modul/koleksi.tj");
+    const VALIDASI: &str  = include_str!("../contoh/modul/validasi.tj");
+
+    /// Cari sumber modul berdasarkan nama atau jalur.
+    /// Mendukung: "matematika", "modul/matematika.tj", "contoh/modul/matematika", dsb.
+    pub fn cari(nama: &str) -> Option<&'static str> {
+        // Ambil bagian akhir jalur lalu hilangkan ekstensi .tj
+        let nama_bersih = nama
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or(nama)
+            .trim_end_matches(".tj");
+
+        match nama_bersih {
+            "matematika" => Some(MATEMATIKA),
+            "teks"       => Some(TEKS),
+            "koleksi"    => Some(KOLEKSI),
+            "validasi"   => Some(VALIDASI),
+            _            => None,
+        }
+    }
+
+    pub fn daftar_nama() -> &'static str {
+        "matematika, teks, koleksi, validasi"
+    }
+}
+
+// Kompilasi dan jalankan sumber modul, kembalikan ekspor sebagai Kamus.
+// Digunakan oleh implementasi masukkan untuk target peramban (wasm32).
+#[cfg(target_arch = "wasm32")]
+fn kompilasi_dan_jalankan_modul(isi: &str, label: &str) -> Object {
+    use std::collections::HashMap;
+
+    let lexer = crate::lexer::Lexer::new(isi);
+    let mut parser = crate::parser::Parser::new(lexer);
+    let program = parser.parse_program();
+
+    if !parser.errors.is_empty() {
+        return Object::Error(format!(
+            "masukkan: galat sintaks di '{}':\n{}",
+            label,
+            parser.errors.join("\n")
+        ));
+    }
+
+    let mut kompilator = crate::compiler::Kompilator::new_dengan_state(
+        crate::bawaan::bikin_tabel_awal(),
+        Vec::new(),
+    );
+    let hasil = match kompilator.kompilasi(&program) {
+        Ok(h) => h,
+        Err(e) => {
+            return Object::Error(format!(
+                "masukkan: galat kompilasi di '{}': {}",
+                label, e
+            ))
+        }
+    };
+
+    let mut vm =
+        crate::vm::VM::new_dengan_globals(hasil, crate::bawaan::bikin_globals_awal());
+    if let Err(e) = vm.jalankan() {
+        return Object::Error(format!(
+            "masukkan: galat eksekusi di '{}': {}",
+            label, e
+        ));
+    }
+
+    let mut ekspor = HashMap::new();
+    let tabel   = kompilator.tabel_simbol.ambil_store();
+    let globals = vm.ambil_globals();
+
+    for (nama, simbol) in tabel.iter() {
+        if simbol.lingkup == crate::compiler::LingkupSimbol::Global
+            && simbol.indeks < globals.len()
+        {
+            ekspor.insert(
+                crate::object::KunciKamus::Str(nama.clone()),
+                globals[simbol.indeks].clone(),
+            );
+        }
+    }
+
+    Object::Hash(Rc::new(RefCell::new(ekspor)))
+}
+
+/// Implementasi masukkan() untuk peramban (WASM):
+/// 1. Cek registri modul bawaan (embedded di binary)
+/// 2. Fallback ke localStorage VFS
+/// 3. Error informatif jika tidak ditemukan
+#[cfg(target_arch = "wasm32")]
+fn builtin_masukkan(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Error(
+            "masukkan: butuh 1 argumen (nama_modul atau jalur_berkas)".to_string(),
+        );
+    }
+    let masukan = match &args[0] {
+        Object::Str(s) => s.clone(),
+        _ => return Object::Error("masukkan: argumen harus TEKS".to_string()),
+    };
+
+    // --- Langkah 1: Cek registri modul bawaan ---
+    if let Some(sumber) = registri_modul::cari(&masukan) {
+        return kompilasi_dan_jalankan_modul(sumber, &masukan);
+    }
+
+    // --- Langkah 2: Coba localStorage VFS ---
+    let nama_berkas = if masukan.ends_with(".tj") {
+        masukan.clone()
+    } else {
+        format!("{}.tj", masukan)
+    };
+
+    let kunci_dicoba = [
+        format!("taji_vfs:{}", masukan),
+        format!("taji_vfs:{}", nama_berkas),
+        format!("taji_vfs:./{}", nama_berkas),
+    ];
+
+    for kunci in &kunci_dicoba {
+        let kunci_aman = kunci.replace('\'', "\\'");
+        let skrip = format!(
+            "(function(){{ var d=localStorage.getItem('{kunci_aman}'); \
+             return d!==null?d:'__TAJI_TIDAK_ADA__'; }})()"
+        );
+        if let Ok(val) = js_sys::eval(&skrip) {
+            if let Some(s) = val.as_string() {
+                if s != "__TAJI_TIDAK_ADA__" {
+                    return kompilasi_dan_jalankan_modul(&s, &masukan);
+                }
+            }
+        }
+    }
+
+    // --- Langkah 3: Error informatif ---
+    Object::Error(format!(
+        "masukkan: modul '{}' tidak ditemukan.\n\
+         Modul bawaan: {}\n\
+         Untuk modul kustom, muat ke VFS dulu: tulis_berkas(\"nama.tj\", <isi_kode>)",
+        masukan,
+        registri_modul::daftar_nama()
+    ))
+}

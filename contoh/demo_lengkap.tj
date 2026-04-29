@@ -79,8 +79,7 @@ cetak("Apakah berisi Taji?: " + berisi(bahasa, "Taji"));
 // Jaringan
 cetak("Mengirim request HTTP GET...");
 coba {
-    misalkan header = {"User-Agent": "Taji/0.5.0"};
-    misalkan web = ambil_web("https://httpbin.org/get", header);
+    misalkan web = ambil_web("https://httpbin.org/get");
     cetak("Berhasil! Karakter awal respons: " + potong(web, 0, 40) + "...");
 } tangkap (err) {
     cetak("Internet bermasalah atau timeout: " + err);

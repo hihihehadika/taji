@@ -1,14 +1,25 @@
+# ── Artefak kompilasi Cargo ──────────────────────────────────────────────────
 /target
 /fuzz/target
 **/*.rs.bk
 *.pdb
-.vscode/
 *.profraw
-.DS_Store
 
-# Berkas database runtime di root proyek (dipindah ke contoh/data/)
+# ── Sistem operasi ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Runtime Taji ─────────────────────────────────────────────────────────────
+# Berkas database yang dibuat saat runtime oleh contoh/project_database.tj
 /database_pegawai.json
 
-# Folder pustaka yang dipasang via 'taji pasang' (tpm)
+# Folder pustaka yang dipasang via 'taji pasang' (TPM)
 # Bersifat lokal per-proyek dan tidak perlu disimpan di repositori
 taji_modul/
+
+# ── Web Playground (belum selesai, tidak disertakan dalam rilis) ──────────────
+/web/

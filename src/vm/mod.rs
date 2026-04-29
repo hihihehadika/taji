@@ -167,7 +167,13 @@ impl VM {
         match op {
             OpCode::OpTulisPuncak => {
                 let idx = self.frame_aktif_mut()?.baca_u16();
-                let val = self.konstanta[idx].clone();
+                // Jika frame aktif memiliki pool konstanta lokal (misal: fungsi dari modul
+                // yang diekspor), gunakan pool tersebut. Jika tidak, gunakan pool VM global.
+                let val = if let Some(pool) = &self.frame_aktif()?.closure.fungsi.pool_konstanta_lokal {
+                    pool.get(idx).cloned().unwrap_or(Object::Null)
+                } else {
+                    self.konstanta.get(idx).cloned().unwrap_or(Object::Null)
+                };
                 self.push(val)?;
             }
             OpCode::OpBenar => self.push(Object::Boolean(true))?,
@@ -320,7 +326,7 @@ impl VM {
             OpCode::OpBuang => {
                 self.terakhir_dibuang = Some(self.pop()?);
             }
-            OpCode::OpCetak => println!("{}", self.pop()?),
+            OpCode::OpCetak => crate::keluaran::cetak_keluar(&format!("{}", self.pop()?)),
             OpCode::OpCoba => {
                 let off = self.frame_aktif_mut()?.baca_u16();
                 self.stack_coba.push(KonteksCoba {
@@ -337,6 +343,11 @@ impl VM {
             OpCode::OpLemparkan => {
                 let e = self.pop()?;
                 self.tangani_lemparan(e)?;
+            }
+            OpCode::OpMasukkan => {
+                let jalur_obj = self.pop()?;
+                let hasil = self.eksekusi_masukkan(jalur_obj)?;
+                self.push(hasil)?;
             }
         }
         Ok(false)
@@ -401,6 +412,158 @@ impl VM {
         self.tutup_upvalues(frame.base);
         self.stack.truncate(frame.base - 1);
         self.push(nilai)
+    }
+
+    /// Muat modul dari berkas, kompilasi, jalankan dengan globals VM pemanggil
+    /// sebagai basis, merger globals modul ke globals pemanggil, dan kembalikan
+    /// Kamus ekspor. Dengan merger globals, fungsi-fungsi modul yang diekspor
+    /// dapat saling memanggil satu sama lain via indeks global yang benar.
+    fn eksekusi_masukkan(&mut self, jalur_obj: Object) -> Result<Object, GalatVM> {
+        let masukan = match jalur_obj {
+            Object::Str(s) => s,
+            lain => {
+                return Ok(Object::Error(format!(
+                    "masukkan: argumen harus TEKS, bukan {}",
+                    lain.type_name()
+                )))
+            }
+        };
+
+        // ── 1. Resolusi jalur berkas modul ──
+        let jalur = {
+            use std::path::Path;
+            // Coba jalur langsung
+            let p = Path::new(&masukan);
+            if p.exists() {
+                masukan.clone()
+            } else {
+                // Coba tambahkan ekstensi .tj
+                let dengan_ekstensi = format!("{}.tj", masukan);
+                if Path::new(&dengan_ekstensi).exists() {
+                    dengan_ekstensi
+                } else {
+                    // Coba di folder taji_modul/
+                    let nama_berkas = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&masukan);
+                    let via_modul = format!("taji_modul/{}.tj", nama_berkas);
+                    if Path::new(&via_modul).exists() {
+                        via_modul
+                    } else {
+                        return Ok(Object::Error(format!(
+                            "masukkan: modul '{}' tidak ditemukan.",
+                            masukan
+                        )));
+                    }
+                }
+            }
+        };
+
+        // ── 2. Baca dan kompilasi isi modul ──
+        let isi = match std::fs::read_to_string(&jalur) {
+            Ok(c) => c,
+            Err(e) => {
+                return Ok(Object::Error(format!(
+                    "masukkan: gagal membaca '{}': {}",
+                    jalur, e
+                )))
+            }
+        };
+
+        let lexer = crate::lexer::Lexer::new(&isi);
+        let mut parser = crate::parser::Parser::new(lexer);
+        let program = parser.parse_program();
+        if !parser.errors.is_empty() {
+            return Ok(Object::Error(format!(
+                "masukkan: galat sintaks di '{}':\n{}",
+                jalur,
+                parser.errors.join("\n")
+            )));
+        }
+
+        let mut kompilator = crate::compiler::Kompilator::new_dengan_state(
+            crate::bawaan::bikin_tabel_awal(),
+            Vec::new(),
+        );
+        let hasil_kompilasi = match kompilator.kompilasi(&program) {
+            Ok(h) => h,
+            Err(e) => {
+                return Ok(Object::Error(format!(
+                    "masukkan: galat kompilasi di '{}': {}",
+                    jalur, e
+                )))
+            }
+        };
+
+        // ── 3. Siapkan globals basis untuk VM modul ──
+        // VM modul harus dimulai dengan globals builtin saja (bukan seluruh globals
+        // pemanggil) agar indeks yang dikompilasi oleh kompilator modul sinkron.
+        // Kompilator modul menggunakan bikin_tabel_awal() yang mendaftarkan N builtin
+        // di indeks 0..N. Maka VM modul harus dimulai dengan persis N builtin yang sama.
+        let globals_builtin = crate::bawaan::bikin_globals_awal();
+        let jumlah_builtin = globals_builtin.len();
+
+        // ── 4. Jalankan VM modul dengan globals builtin sebagai basis ──
+        let mut vm_modul = VM::new_dengan_globals(hasil_kompilasi, globals_builtin);
+        if let Err(e) = vm_modul.jalankan() {
+            return Ok(Object::Error(format!(
+                "masukkan: galat eksekusi di '{}': {}",
+                jalur, e
+            )));
+        }
+
+        // ── 5. Ambil globals dan konstanta hasil modul ──
+        let globals_modul = vm_modul.ambil_globals();
+        let konstanta_modul = vm_modul.ambil_konstanta();
+
+        // ── 6. Merger globals modul ke globals VM pemanggil ──
+        // Slot 0..jumlah_builtin adalah builtin — sudah ada di pemanggil, lewati.
+        // Slot jumlah_builtin ke atas adalah variabel yang didefinisikan modul.
+        // Kita tulis ke globals pemanggil pada indeks yang SAMA persis.
+        // Jika globals pemanggil lebih pendek, resize dulu.
+        if globals_modul.len() > self.globals.len() {
+            self.globals.resize(globals_modul.len(), Object::Null);
+        }
+        for (i, obj_modul) in globals_modul.iter().enumerate().skip(jumlah_builtin) {
+            // Suntikkan pool konstanta modul ke setiap Closure di globals modul
+            // agar rekursi (OpAmbilGlobal lalu OpPanggil) tetap menggunakan pool yang benar.
+            let nilai = match obj_modul.clone() {
+                Object::Closure(mut c) => {
+                    c.fungsi.pool_konstanta_lokal = Some(konstanta_modul.clone());
+                    Object::Closure(c)
+                }
+                lain => lain,
+            };
+            self.globals[i] = nilai;
+        }
+
+        // ── 7. Bangun Kamus ekspor dari variabel global modul ──
+        // Setiap Closure yang diekspor disuntikkan pool_konstanta_lokal
+        // agar saat dipanggil di VM pemanggil, instruksi OpTulisPuncak
+        // membaca dari pool konstanta modul — bukan pool pemanggil.
+        let tabel = kompilator.tabel_simbol.ambil_store();
+        let mut ekspor = HashMap::new();
+        for (nama, simbol) in tabel.iter() {
+            if simbol.lingkup == crate::compiler::LingkupSimbol::Global
+                && simbol.indeks < globals_modul.len()
+            {
+                // Suntikkan pool konstanta modul ke setiap Closure yang diekspor
+                let nilai = match globals_modul[simbol.indeks].clone() {
+                    Object::Closure(mut c) => {
+                        c.fungsi.pool_konstanta_lokal = Some(konstanta_modul.clone());
+                        Object::Closure(c)
+                    }
+                    lain => lain,
+                };
+                ekspor.insert(
+                    crate::object::KunciKamus::Str(nama.clone()),
+                    nilai,
+                );
+            }
+        }
+
+        Ok(Object::Hash(self.alokasi_hash(ekspor)))
     }
 
     fn eksekusi_panggil(&mut self, jml_arg: usize) -> Result<(), GalatVM> {

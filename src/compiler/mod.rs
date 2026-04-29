@@ -40,6 +40,7 @@ impl HasilKompilasi {
             jumlah_parameter: 0,
             jumlah_lokal: self.tabel_simbol.jumlah_definisi,
             nama: Some("utama".to_string()),
+            pool_konstanta_lokal: None,
         }
     }
 }
@@ -274,15 +275,14 @@ impl Kompilator {
             // ── Coba / Tangkap ──
             Expression::Coba(coba) => self.kompilasi_coba(coba),
 
-            // ── Masukkan (Import) ──
+            // ── Masukkan (Import) — dikompilasi sebagai instruksi OpMasukkan ──
+            // Tidak lagi memanggil builtin masukkan() karena OpMasukkan
+            // memiliki akses langsung ke globals VM pemanggil, sehingga
+            // fungsi-fungsi modul dapat saling memanggil satu sama lain
+            // melalui globals VM pemanggil yang sudah di-merger.
             Expression::Masukkan(msk) => {
-                // Kompilasi path sebagai ekspresi, lalu panggil builtin masukkan
-                let idx = self.tabel_simbol.selesaikan("masukkan").ok_or_else(|| {
-                    GalatKompilasi::SimbolTidakTerdefinisi("masukkan".to_string())
-                })?;
-                self.emit_ambil_simbol(&idx)?;
                 self.kompilasi_ekspresi(&msk.path)?;
-                self.emit(OpCode::OpPanggil, &[1])?;
+                self.emit(OpCode::OpMasukkan, &[])?;
                 Ok(())
             }
         }
@@ -581,6 +581,7 @@ impl Kompilator {
             jumlah_parameter: parameters.len(),
             jumlah_lokal: k_anak.tabel_simbol.jumlah_definisi,
             nama: None,
+            pool_konstanta_lokal: None,
         };
         self.konstanta = k_anak.konstanta;
         let f_idx = self.tambah_konstanta(Object::FungsiVM(f_obj))?;

@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "gaji": 8000000,
+    "nama": "DIKA",
+    "posisi": "Programmer",
+    "terdaftar": 1777459948896
+  },
+  {
+    "gaji": 15000000,
+    "nama": "Leanne Graham",
+    "posisi": "Remote Outsourcing",
+    "terdaftar": 1777459988220
+  }
+]
