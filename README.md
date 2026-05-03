@@ -15,11 +15,11 @@ Taji adalah bahasa pemrograman yang dirancang agar terasa akrab bagi penutur Bah
 
 ---
 
-## 🚀 Coba Taji di Peramban!
+## Uji Coba Taji di Peramban
 
-Ingin mencoba Taji tanpa instalasi? Gunakan **Web Playground** resmi kami yang interaktif, lengkap dengan dokumentasi dan contoh kode:
+Ingin mencoba Taji tanpa instalasi? Gunakan **Arena Bermain Web** resmi kami yang interaktif, lengkap dengan dokumentasi dan contoh kode:
 
-👉 **[tajicode.vercel.app](https://tajicode.vercel.app)**
+**[tajicode.vercel.app](https://tajicode.vercel.app)**
 
 ---
 
@@ -272,7 +272,7 @@ Kode Sumber (.tj)
 
 ## Riwayat Pembaruan
 
-- **v1.1.1 (3 Mei 2026)**: Penambahan **Taji Web Playground** berbasis WebAssembly (WASM), memungkinkan eksekusi kode Taji secara interaktif langsung di peramban. Pembaruan sistem pelaporan galat yang lebih profesional (traceback, deteksi typo, pelacakan baris/kolom yang lebih presisi). Perbaikan arsitektur kritis sistem modul: instruksi `masukkan()` direfaktor menjadi **opcode VM native `OpMasukkan`**, memastikan stabilitas rekursi dan merger konstanta. Penambahan Taji Package Manager (TPM) di CLI.
+- **v1.1.1 (3 Mei 2026)**: Penambahan **Arena Bermain Web Taji** berbasis WebAssembly (WASM), memungkinkan eksekusi kode Taji secara interaktif langsung di peramban. Pembaruan sistem pelaporan galat yang lebih profesional (jejak balik, deteksi salah ketik, pelacakan baris/kolom yang lebih presisi). Perbaikan arsitektur kritis sistem modul: instruksi `masukkan()` direfaktor menjadi **opcode VM native `OpMasukkan`**, memastikan stabilitas rekursi dan merger konstanta. Penambahan Manajer Paket Taji (MPT/TPM) di antarmuka baris perintah (CLI).
 - **v1.1.0 (19 April 2026)**: Pemurnian ke 100% TVM. Implementasi pelacakan baris/kolom di Lexer & Token. Pelaporan galat parser (`[baris X, kolom Y]`) dan galat runtime VM (`[baris X]`). Penambahan operator logika kata `dan`, `atau`, `bukan`. Dukungan komentar multi-baris `/* ... */`.
 - **v1.0.0 (17 April 2026)**: Migrasi arsitektur ke Bytecode VM. Implementasi Mark-and-Sweep GC dan sandbox instruksi.
 - **v0.5.0 (9 April 2026)**: Penambahan HTTP bawaan (`ambil_web`) dan modul utilitas teks.
