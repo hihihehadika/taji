@@ -1,0 +1,15 @@
+{
+  "name": "taji",
+  "type": "module",
+  "version": "1.1.1",
+  "files": [
+    "taji_lib_bg.wasm",
+    "taji_lib.js",
+    "taji_lib.d.ts"
+  ],
+  "main": "taji_lib.js",
+  "types": "taji_lib.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
