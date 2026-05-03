@@ -91,7 +91,26 @@ where
                         globals_vm = vm.ambil_globals();
                     }
                     Err(e) => {
-                        let _ = writeln!(output, "  KESALAHAN VM: {}", e);
+                        use crate::vm::galat::GalatVM;
+                        match &e {
+                            GalatVM::DenganBaris(info) => {
+                                let msg = crate::keluaran::format_galat_dengan_cuplikan(
+                                    "KESALAHAN RUNTIME",
+                                    &info.sumber.to_string(),
+                                    "<repl>",
+                                    trimmed,
+                                    info.baris,
+                                    info.kolom,
+                                    info.panjang,
+                                    None,
+                                    info.jejak.clone(),
+                                );
+                                let _ = write!(output, "{}", msg);
+                            }
+                            _ => {
+                                let _ = writeln!(output, "  KESALAHAN VM:\n  = {}", e);
+                            }
+                        }
                         // Rollback tabel simbol dan konstanta agar tidak korup
                         tabel_simbol_vm = crate::bawaan::bikin_tabel_awal();
                         globals_vm = crate::bawaan::bikin_globals_awal();
@@ -101,7 +120,26 @@ where
             }
 
             Err(e) => {
-                let _ = writeln!(output, "  KESALAHAN KOMPILASI: {}", e);
+                use crate::compiler::galat::GalatKompilasi;
+                match &e {
+                    GalatKompilasi::SimbolTidakTerdefinisi(nama, baris, kolom, saran) => {
+                        let msg = crate::keluaran::format_galat_dengan_cuplikan(
+                            "KESALAHAN KOMPILASI",
+                            &format!("simbol '{}' belum dideklarasikan", nama),
+                            "<repl>",
+                            trimmed,
+                            *baris,
+                            *kolom,
+                            nama.len(),
+                            saran.clone(),
+                            vec![],
+                        );
+                        let _ = write!(output, "{}", msg);
+                    }
+                    _ => {
+                        let _ = writeln!(output, "  KESALAHAN KOMPILASI:\n  = {}", e);
+                    }
+                }
             }
         }
     }

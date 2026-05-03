@@ -12,7 +12,8 @@ pub enum GalatKompilasi {
     InvarianDilanggar(String),
 
     /// Referensi ke variabel yang belum dideklarasikan dengan `misalkan`.
-    SimbolTidakTerdefinisi(String),
+    /// Menyimpan (nama, baris, kolom, saran) untuk pelaporan galat yang presisi.
+    SimbolTidakTerdefinisi(String, usize, usize, Option<String>),
 
     /// Ukuran program (bytecode/konstanta/variabel) melampaui batas 16-bit (65535).
     /// Tanpa guard ini, konversi `as u16` akan mem-truncate nilai secara diam-diam
@@ -41,8 +42,15 @@ impl fmt::Display for GalatKompilasi {
             GalatKompilasi::InvarianDilanggar(msg) => {
                 write!(f, "GalatKompilasi: invarian dilanggar - {}", msg)
             }
-            GalatKompilasi::SimbolTidakTerdefinisi(nama) => {
-                write!(f, "GalatKompilasi: simbol '{}' belum dideklarasikan", nama)
+            GalatKompilasi::SimbolTidakTerdefinisi(nama, baris, kolom, saran) => {
+                write!(f, "simbol '{}' belum dideklarasikan", nama)?;
+                if let Some(s) = saran {
+                    write!(f, ". Apakah maksudmu '{}'?", s)?;
+                }
+                if *baris > 0 {
+                    write!(f, " (baris {}, kolom {})", baris, kolom)?;
+                }
+                Ok(())
             }
             GalatKompilasi::BatasanTerlampaui(msg) => {
                 write!(f, "GalatKompilasi: batasan 16-bit terlampaui - {}", msg)

@@ -21,5 +21,8 @@ Thumbs.db
 # Bersifat lokal per-proyek dan tidak perlu disimpan di repositori
 taji_modul/
 
-# ── Web Playground (belum selesai, tidak disertakan dalam rilis) ──────────────
-/web/
+# ── Web Playground ──────────────────────────────────────────────────────────────
+# (Pengecualian ditangani oleh web/.gitignore)
+
+# ── Generator PPT ─────────────────────────────────────────────────────────────
+/ppt_generator/

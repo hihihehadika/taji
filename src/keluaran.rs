@@ -39,9 +39,65 @@ pub fn aktifkan_buffer() {
 /// Mengambil seluruh isi buffer dan menonaktifkan mode penangkapan.
 /// Mengembalikan semua baris output yang tertangkap sejak `aktifkan_buffer`.
 pub fn ambil_dan_bersihkan_buffer() -> Vec<String> {
-    BUFFER_KELUARAN.with(|buf| {
-        buf.borrow_mut()
-            .take()
-            .unwrap_or_default()
-    })
+    BUFFER_KELUARAN.with(|buf| buf.borrow_mut().take().unwrap_or_default())
+}
+
+/// Menghasilkan string pesan galat dengan cuplikan kode sumber dan penunjuk kolom (^ marker).
+#[allow(clippy::too_many_arguments)]
+pub fn format_galat_dengan_cuplikan(
+    jenis: &str,
+    pesan: &str,
+    filename: &str,
+    isi: &str,
+    baris: usize,
+    kolom: usize,
+    panjang_sorot: usize,
+    saran: Option<String>,
+    jejak: Vec<String>,
+) -> String {
+    use crate::warna::{warnai, BIRU, CYAN, HIJAU, KUNING, MERAH, PUTIH};
+    let mut hasil = String::new();
+    hasil.push_str(&format!("{}:\n", warnai(jenis, MERAH)));
+    if baris > 0 {
+        let lokasi = warnai(&format!("{}:{}:{}", filename, baris, kolom), CYAN);
+        hasil.push_str(&format!("  --> {}\n", lokasi));
+        hasil.push_str(&format!("   {}\n", warnai("|", BIRU)));
+        if let Some(baris_kode) = isi.lines().nth(baris.saturating_sub(1)) {
+            let nomor = format!("{:>2}", baris);
+            hasil.push_str(&format!(
+                " {} {} {}\n",
+                warnai(&nomor, CYAN),
+                warnai("|", BIRU),
+                baris_kode
+            ));
+            let spasi_kolom = " ".repeat(kolom.saturating_sub(1));
+            let sorot = warnai(&"^".repeat(panjang_sorot.max(1)), KUNING);
+            hasil.push_str(&format!(
+                "    {} {}{}\n",
+                warnai("|", BIRU),
+                spasi_kolom,
+                sorot
+            ));
+        }
+        hasil.push_str(&format!("   {}\n", warnai("|", BIRU)));
+    }
+    hasil.push_str(&format!("   = {}", pesan));
+    if let Some(s) = saran {
+        hasil.push_str(&format!(
+            "\n   = {} Apakah maksudmu '{}'?",
+            warnai("BANTUAN:", HIJAU),
+            s
+        ));
+    }
+
+    if !jejak.is_empty() {
+        hasil.push_str(&format!(
+            "\n\n{}",
+            warnai("Jejak Pemanggilan (paling baru terakhir):", PUTIH)
+        ));
+        for item in jejak {
+            hasil.push_str(&format!("\n  - {}", item));
+        }
+    }
+    hasil
 }

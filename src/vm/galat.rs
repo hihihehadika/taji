@@ -21,12 +21,18 @@ pub enum GalatVM {
     AksesIndeksGagal(String),
     IndeksDiLuarBatas(usize),
     KunciKamusTidakDitemukan,
-    GalatDilempar(Object),
-    /// Pembungkus galat yang menyertakan nomor baris kode sumber.
-    DenganBaris {
-        baris: usize,
-        sumber: Box<GalatVM>,
-    },
+    GalatDilempar(Box<Object>),
+    /// Pembungkus galat yang menyertakan nomor baris dan kolom kode sumber serta jejak pemanggilan.
+    DenganBaris(Box<InformasiGalatBerbaris>),
+}
+
+#[derive(Debug, Clone)]
+pub struct InformasiGalatBerbaris {
+    pub baris: usize,
+    pub kolom: usize,
+    pub panjang: usize,
+    pub sumber: Box<GalatVM>,
+    pub jejak: Vec<String>,
 }
 
 impl fmt::Display for GalatVM {
@@ -57,8 +63,16 @@ impl fmt::Display for GalatVM {
             GalatVM::IndeksDiLuarBatas(i) => write!(f, "Indeks di luar batas: {}", i),
             GalatVM::KunciKamusTidakDitemukan => write!(f, "Kunci tidak ditemukan di Kamus"),
             GalatVM::GalatDilempar(obj) => write!(f, "{}", obj),
-            GalatVM::DenganBaris { baris, sumber } => {
-                write!(f, "[baris {}] {}", baris, sumber)
+            GalatVM::DenganBaris(info) => {
+                if info.kolom > 0 {
+                    write!(
+                        f,
+                        "[baris {}, kolom {}] {}",
+                        info.baris, info.kolom, info.sumber
+                    )
+                } else {
+                    write!(f, "[baris {}] {}", info.baris, info.sumber)
+                }
             }
         }
     }

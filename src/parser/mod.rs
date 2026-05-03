@@ -193,6 +193,7 @@ impl Parser {
 
         let name = Pengenal {
             value: self.cur_token.literal.clone(),
+            posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
         };
 
         if !self.expect_peek(&TokenType::Assign) {
@@ -323,6 +324,7 @@ impl Parser {
     fn parse_identifier(&self) -> Expression {
         Expression::Pengenal(Pengenal {
             value: self.cur_token.literal.clone(),
+            posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
         })
     }
 
@@ -435,6 +437,7 @@ impl Parser {
 
         params.push(Pengenal {
             value: self.cur_token.literal.clone(),
+            posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
         });
 
         while self.peek_token_is(&TokenType::Comma) {
@@ -445,6 +448,7 @@ impl Parser {
             }
             params.push(Pengenal {
                 value: self.cur_token.literal.clone(),
+                posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
             });
         }
 
@@ -508,6 +512,7 @@ impl Parser {
 
         let error_ident = Pengenal {
             value: self.cur_token.literal.clone(),
+            posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
         };
 
         // Harapkan `)`
@@ -744,6 +749,7 @@ impl Parser {
 
         identifiers.push(Pengenal {
             value: self.cur_token.literal.clone(),
+            posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
         });
 
         while self.peek_token_is(&TokenType::Comma) {
@@ -752,6 +758,7 @@ impl Parser {
 
             identifiers.push(Pengenal {
                 value: self.cur_token.literal.clone(),
+                posisi: crate::ast::Posisi::new(self.cur_token.baris, self.cur_token.kolom, self.cur_token.literal.len()),
             });
         }
 

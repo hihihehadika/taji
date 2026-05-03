@@ -252,6 +252,30 @@ impl Lexer {
                     'r' => string.push('\r'),
                     '\\' => string.push('\\'),
                     '"' => string.push('"'),
+                    'x' => {
+                        let hex1 = self.peek_char();
+                        if hex1.is_ascii_hexdigit() {
+                            self.read_char();
+                            let h1 = self.ch;
+                            let hex2 = self.peek_char();
+                            if hex2.is_ascii_hexdigit() {
+                                self.read_char();
+                                let h2 = self.ch;
+                                if let Ok(byte) = u8::from_str_radix(&format!("{}{}", h1, h2), 16) {
+                                    string.push(byte as char);
+                                } else {
+                                    string.push('x');
+                                    string.push(h1);
+                                    string.push(h2);
+                                }
+                            } else {
+                                string.push('x');
+                                string.push(h1);
+                            }
+                        } else {
+                            string.push('x');
+                        }
+                    }
                     _ => string.push(self.ch),
                 }
             } else {

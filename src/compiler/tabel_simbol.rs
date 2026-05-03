@@ -125,4 +125,61 @@ impl TabelSimbol {
     pub fn ambil_store(&self) -> &HashMap<String, SimbolDefinisi> {
         &self.store
     }
+
+    /// Mencari saran simbol terdekat berdasarkan Levenshtein Distance
+    pub fn cari_saran(&self, nama_salah: &str) -> Option<String> {
+        let mut kandidat_terbaik = None;
+        let mut jarak_terkecil = usize::MAX;
+
+        for kunci in self.store.keys() {
+            let jarak = jarak_levenshtein(nama_salah, kunci);
+            // Toleransi maksimal 3 karakter beda untuk typo
+            if jarak <= 3 && jarak < jarak_terkecil {
+                jarak_terkecil = jarak;
+                kandidat_terbaik = Some(kunci.clone());
+            }
+        }
+
+        // Cek di outer scope jika ada
+        if let Some(ref outer) = self.outer {
+            if let Some(saran_luar) = outer.cari_saran(nama_salah) {
+                let jarak_luar = jarak_levenshtein(nama_salah, &saran_luar);
+                if jarak_luar < jarak_terkecil {
+                    return Some(saran_luar);
+                }
+            }
+        }
+
+        kandidat_terbaik
+    }
+}
+
+/// Menghitung jarak Levenshtein antara dua string
+fn jarak_levenshtein(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let mut matriks = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
+
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..=a_chars.len() {
+        matriks[i][0] = i;
+    }
+    #[allow(clippy::needless_range_loop)]
+    for j in 0..=b_chars.len() {
+        matriks[0][j] = j;
+    }
+
+    for i in 1..=a_chars.len() {
+        for j in 1..=b_chars.len() {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            matriks[i][j] = (matriks[i - 1][j] + 1)
+                .min(matriks[i][j - 1] + 1)
+                .min(matriks[i - 1][j - 1] + cost);
+        }
+    }
+    matriks[a_chars.len()][b_chars.len()]
 }

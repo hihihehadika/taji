@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+@theme {
+  --color-taji-emerald: #10b981;
+  --color-taji-emerald-hover: #059669;
+
+  --color-taji-dark-bg: #1e293b;
+  --color-taji-dark-panel: #0f172a;
+  --color-taji-dark-text: #e2e8f0;
+  --color-taji-dark-border: #334155;
+
+  --color-taji-light-bg: #f8fafc;
+  --color-taji-light-panel: #ffffff;
+  --color-taji-light-text: #0f172a;
+  --color-taji-light-border: #e2e8f0;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    --bg: var(--color-taji-light-bg);
+    --panel: var(--color-taji-light-panel);
+    --text: var(--color-taji-light-text);
+    --border: var(--color-taji-light-border);
+  }
+
+  .dark {
+    --bg: var(--color-taji-dark-bg);
+    --panel: var(--color-taji-dark-panel);
+    --text: var(--color-taji-dark-text);
+    --border: var(--color-taji-dark-border);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glassmorphism {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+  }
+}

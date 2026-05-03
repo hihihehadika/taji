@@ -3,7 +3,7 @@
 use crate::code::definisi::OpCode;
 use crate::compiler::HasilKompilasi;
 use crate::object::{Object, ObjekClosure, ObjekUpvalue};
-use crate::vm::galat::GalatVM;
+use crate::vm::galat::{GalatVM, InformasiGalatBerbaris};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -56,8 +56,8 @@ pub struct VM {
     stack_coba: Vec<KonteksCoba>,
     upvalues_terbuka: Vec<Rc<RefCell<ObjekUpvalue>>>,
     pub terakhir_dibuang: Option<Object>,
-    /// Pemetaan offset bytecode -> nomor baris kode sumber.
-    tabel_baris: Vec<usize>,
+    /// Pemetaan offset bytecode -> (baris, kolom, panjang) kode sumber.
+    tabel_baris: Vec<(usize, usize, usize)>,
 
     // ── Garbage Collector (Mark and Sweep) Registry ──
     gc_arrays: Vec<Rc<RefCell<Vec<Object>>>>,
@@ -101,14 +101,43 @@ impl VM {
         }
     }
 
-    /// Mengembalikan nomor baris kode sumber berdasarkan PC (instruction pointer) saat ini.
-    fn baris_dari_ip(&self) -> usize {
+    /// Mengembalikan (baris, kolom, panjang) kode sumber berdasarkan PC saat ini.
+    fn posisi_dari_ip(&self) -> (usize, usize, usize) {
         if let Some(frame) = self.frames.last() {
             let ip = frame.ip.saturating_sub(1);
-            self.tabel_baris.get(ip).copied().unwrap_or(0)
+            // Gunakan tabel baris milik fungsi jika tersedia, jika tidak pakai global (untuk backward compatibility)
+            frame
+                .closure
+                .fungsi
+                .tabel_baris
+                .get(ip)
+                .copied()
+                .unwrap_or_else(|| self.tabel_baris.get(ip).copied().unwrap_or((0, 0, 1)))
         } else {
-            0
+            (0, 0, 1)
         }
+    }
+
+    /// Membangun jejak pemanggilan (call stack) untuk pelaporan galat.
+    fn bangun_jejak(&self) -> Vec<String> {
+        let mut jejak = Vec::new();
+        // Telusuri dari frame terdalam (terakhir) ke terluar
+        for frame in self.frames.iter().rev() {
+            let nama = frame.closure.fungsi.nama.as_deref().unwrap_or("<anonim>");
+            let ip = frame.ip.saturating_sub(1);
+            let (baris, kolom, _) = frame
+                .closure
+                .fungsi
+                .tabel_baris
+                .get(ip)
+                .copied()
+                .unwrap_or_else(|| self.tabel_baris.get(ip).copied().unwrap_or((0, 0, 1)));
+            jejak.push(format!(
+                "di fungsi {} (baris {}, kolom {})",
+                nama, baris, kolom
+            ));
+        }
+        jejak
     }
 
     pub fn jalankan(&mut self) -> Result<Object, GalatVM> {
@@ -122,11 +151,15 @@ impl VM {
                 }
             }
             if self.eksekusi_instruksi().map_err(|e| {
-                let baris = self.baris_dari_ip();
-                GalatVM::DenganBaris {
+                let (baris, kolom, panjang) = self.posisi_dari_ip();
+                let jejak = self.bangun_jejak();
+                GalatVM::DenganBaris(Box::new(InformasiGalatBerbaris {
                     baris,
+                    kolom,
+                    panjang,
                     sumber: Box::new(e),
-                }
+                    jejak,
+                }))
             })? {
                 break;
             }
@@ -169,11 +202,12 @@ impl VM {
                 let idx = self.frame_aktif_mut()?.baca_u16();
                 // Jika frame aktif memiliki pool konstanta lokal (misal: fungsi dari modul
                 // yang diekspor), gunakan pool tersebut. Jika tidak, gunakan pool VM global.
-                let val = if let Some(pool) = &self.frame_aktif()?.closure.fungsi.pool_konstanta_lokal {
-                    pool.get(idx).cloned().unwrap_or(Object::Null)
-                } else {
-                    self.konstanta.get(idx).cloned().unwrap_or(Object::Null)
-                };
+                let val =
+                    if let Some(pool) = &self.frame_aktif()?.closure.fungsi.pool_konstanta_lokal {
+                        pool.get(idx).cloned().unwrap_or(Object::Null)
+                    } else {
+                        self.konstanta.get(idx).cloned().unwrap_or(Object::Null)
+                    };
                 self.push(val)?;
             }
             OpCode::OpBenar => self.push(Object::Boolean(true))?,
@@ -443,10 +477,7 @@ impl VM {
                     dengan_ekstensi
                 } else {
                     // Coba di folder taji_modul/
-                    let nama_berkas = p
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or(&masukan);
+                    let nama_berkas = p.file_name().and_then(|n| n.to_str()).unwrap_or(&masukan);
                     let via_modul = format!("taji_modul/{}.tj", nama_berkas);
                     if Path::new(&via_modul).exists() {
                         via_modul
@@ -556,10 +587,7 @@ impl VM {
                     }
                     lain => lain,
                 };
-                ekspor.insert(
-                    crate::object::KunciKamus::Str(nama.clone()),
-                    nilai,
-                );
+                ekspor.insert(crate::object::KunciKamus::Str(nama.clone()), nilai);
             }
         }
 
@@ -774,7 +802,7 @@ impl VM {
             self.frame_aktif_mut()?.ip = konteks.offset_handler;
             Ok(())
         } else {
-            Err(GalatVM::GalatDilempar(nilai_galat))
+            Err(GalatVM::GalatDilempar(Box::new(nilai_galat)))
         }
     }
 

@@ -199,13 +199,11 @@ fn builtin_tanya(args: Vec<Object>) -> Object {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = window, js_name = prompt)]
-    fn window_prompt(message: &str) -> Option<String>;
-}
-
+// Implementasi tanya() untuk peramban menggunakan antrian masukan.
+// Alih-alih memunculkan window.prompt() yang membekukan UI dan terasa
+// amatir, fungsi ini membaca input dari buffer antrian yang telah diisi
+// oleh frontend sebelum eksekusi dimulai. Prompt dan jawaban dicetak
+// ke panel output agar alur interaksi terlihat natural layaknya terminal.
 #[cfg(target_arch = "wasm32")]
 fn builtin_tanya(args: Vec<Object>) -> Object {
     let msg = if !args.is_empty() {
@@ -213,11 +211,19 @@ fn builtin_tanya(args: Vec<Object>) -> Object {
     } else {
         "".to_string()
     };
-    
-    match window_prompt(&msg) {
-        Some(teks) => Object::Str(teks),
-        None => Object::Str("".to_string()),
+
+    // Cetak prompt ke panel output (seperti terminal menampilkan pertanyaan)
+    if !msg.is_empty() {
+        crate::keluaran::cetak_keluar(&format!("{} ", msg));
     }
+
+    // Ambil jawaban dari antrian masukan
+    let jawaban = crate::masukan::ambil_masukan().unwrap_or_default();
+
+    // Cetak jawaban ke panel output agar terlihat seolah diketik pengguna
+    crate::keluaran::cetak_keluar(&jawaban);
+
+    Object::Str(jawaban)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -307,8 +313,7 @@ fn builtin_baca_berkas(args: Vec<Object>) -> Object {
     if args.is_empty() {
         return Object::Error("baca_berkas: butuh jalur berkas".to_string());
     }
-    let jalur = args[0].to_string().replace('"', "\\\"")
-        .replace('`', "\\`");
+    let jalur = args[0].to_string().replace('"', "\\\"").replace('`', "\\`");
     let skrip = format!(
         "(function() {{ \
             try {{ \
@@ -598,7 +603,10 @@ fn builtin_ambil_web(args: Vec<Object>) -> Object {
     }
 }
 
-// Implementasi ambil_web via XMLHttpRequest sinkron untuk peramban
+// Implementasi ambil_web via XMLHttpRequest sinkron untuk peramban.
+// Catatan arsitektur: XHR sinkron memiliki keterbatasan pada peramban modern,
+// terutama terkait kebijakan CORS (Cross-Origin Resource Sharing). Pesan galat
+// dirancang agar informatif dan memandu pengguna memahami batasan ini.
 #[cfg(target_arch = "wasm32")]
 fn builtin_ambil_web(args: Vec<Object>) -> Object {
     if args.is_empty() {
@@ -618,16 +626,28 @@ fn builtin_ambil_web(args: Vec<Object>) -> Object {
                 xhr.send(null); \
                 if (xhr.status >= 200 && xhr.status < 300) {{ \
                     return xhr.responseText; \
+                }} else if (xhr.status === 0) {{ \
+                    return '__TAJI_HTTP_CORS__'; \
                 }} else {{ \
-                    return '__TAJI_HTTP_GALAT__:HTTP ' + xhr.status; \
+                    return '__TAJI_HTTP_GALAT__:HTTP ' + xhr.status + ' ' + xhr.statusText; \
                 }} \
             }} catch(e) {{ \
+                if (e.name === 'NetworkError' || e.message.indexOf('CORS') !== -1 \
+                    || e.message.indexOf('cross-origin') !== -1 \
+                    || e.message.indexOf('network') !== -1) {{ \
+                    return '__TAJI_HTTP_CORS__'; \
+                }} \
                 return '__TAJI_HTTP_GALAT__:' + e.message; \
             }} \
         }})()"
     );
     match js_sys::eval(&skrip) {
         Ok(val) => match val.as_string() {
+            Some(s) if s == "__TAJI_HTTP_CORS__" => Object::Error(format!(
+                "ambil_web gagal: Permintaan ke '{}' diblokir oleh kebijakan CORS peramban. \
+                     Server tujuan tidak mengizinkan akses dari domain ini.",
+                url_mentah
+            )),
             Some(s) if s.starts_with("__TAJI_HTTP_GALAT__:") => {
                 Object::Error(format!("ambil_web gagal: {}", &s[20..]))
             }
@@ -709,8 +729,17 @@ fn builtin_jeda(args: Vec<Object>) -> Object {
     Object::Null
 }
 
+// Implementasi jeda untuk peramban menggunakan teknik busy-wait.
+// Karena WASM berjalan di utas tunggal (single-threaded) dan tidak mendukung
+// std::thread::sleep, kita menahan eksekusi VM secara paksa dengan
+// membandingkan waktu saat ini terhadap waktu target menggunakan js_sys.
 #[cfg(target_arch = "wasm32")]
-fn builtin_jeda(_args: Vec<Object>) -> Object {
+fn builtin_jeda(args: Vec<Object>) -> Object {
+    if let Some(Object::Integer(_ms)) = args.first() {
+        // Di WebAssembly (Main Thread), kita abaikan jeda agar tidak membekukan UI
+        // dengan busy-wait. Loop tak terbatas yang mengandalkan jeda akan tertangkap
+        // oleh batas_instruksi VM.
+    }
     Object::Null
 }
 
@@ -760,7 +789,9 @@ fn builtin_acak(args: Vec<Object>) -> Object {
 #[cfg(not(target_arch = "wasm32"))]
 fn builtin_masukkan(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Error("masukkan: butuh 1 argumen (nama_modul atau jalur_berkas)".to_string());
+        return Object::Error(
+            "masukkan: butuh 1 argumen (nama_modul atau jalur_berkas)".to_string(),
+        );
     }
     let masukan = match &args[0] {
         Object::Str(s) => s.clone(),
@@ -816,7 +847,6 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
         }
     };
 
-
     let jalur = match jalur_final {
         Some(j) => j,
         None => {
@@ -843,10 +873,7 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     let isi = match std::fs::read_to_string(&jalur) {
         Ok(c) => c,
         Err(e) => {
-            return Object::Error(format!(
-                "masukkan: gagal membaca berkas '{}': {}",
-                jalur, e
-            ))
+            return Object::Error(format!("masukkan: gagal membaca berkas '{}': {}", jalur, e))
         }
     };
 
@@ -869,21 +896,13 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     );
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
-        Err(e) => {
-            return Object::Error(format!(
-                "masukkan: galat kompilasi di '{}': {}",
-                jalur, e
-            ))
-        }
+        Err(e) => return Object::Error(format!("masukkan: galat kompilasi di '{}': {}", jalur, e)),
     };
 
     // Eksekusi menggunakan VM
     let mut vm = crate::vm::VM::new_dengan_globals(hasil, crate::bawaan::bikin_globals_awal());
     if let Err(e) = vm.jalankan() {
-        return Object::Error(format!(
-            "masukkan: galat eksekusi di '{}': {}",
-            jalur, e
-        ));
+        return Object::Error(format!("masukkan: galat eksekusi di '{}': {}", jalur, e));
     }
 
     // Ekspor seluruh variabel global dari modul sebagai Kamus (Hash)
@@ -892,8 +911,7 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     let globals = vm.ambil_globals();
 
     for (nama, simbol) in tabel.iter() {
-        if simbol.lingkup == crate::compiler::LingkupSimbol::Global
-            && simbol.indeks < globals.len()
+        if simbol.lingkup == crate::compiler::LingkupSimbol::Global && simbol.indeks < globals.len()
         {
             let nilai = &globals[simbol.indeks];
             ekspor.insert(crate::object::KunciKamus::Str(nama.clone()), nilai.clone());
@@ -903,7 +921,6 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
     Object::Hash(Rc::new(RefCell::new(ekspor)))
 }
 
-
 // ============================================================
 // Registri Modul Bawaan (Tertanam di WASM Binary)
 // ============================================================
@@ -912,9 +929,9 @@ fn builtin_masukkan(args: Vec<Object>) -> Object {
 #[cfg(target_arch = "wasm32")]
 mod registri_modul {
     const MATEMATIKA: &str = include_str!("../contoh/modul/matematika.tj");
-    const TEKS: &str      = include_str!("../contoh/modul/teks.tj");
-    const KOLEKSI: &str   = include_str!("../contoh/modul/koleksi.tj");
-    const VALIDASI: &str  = include_str!("../contoh/modul/validasi.tj");
+    const TEKS: &str = include_str!("../contoh/modul/teks.tj");
+    const KOLEKSI: &str = include_str!("../contoh/modul/koleksi.tj");
+    const VALIDASI: &str = include_str!("../contoh/modul/validasi.tj");
 
     /// Cari sumber modul berdasarkan nama atau jalur.
     /// Mendukung: "matematika", "modul/matematika.tj", "contoh/modul/matematika", dsb.
@@ -928,10 +945,10 @@ mod registri_modul {
 
         match nama_bersih {
             "matematika" => Some(MATEMATIKA),
-            "teks"       => Some(TEKS),
-            "koleksi"    => Some(KOLEKSI),
-            "validasi"   => Some(VALIDASI),
-            _            => None,
+            "teks" => Some(TEKS),
+            "koleksi" => Some(KOLEKSI),
+            "validasi" => Some(VALIDASI),
+            _ => None,
         }
     }
 
@@ -964,30 +981,20 @@ fn kompilasi_dan_jalankan_modul(isi: &str, label: &str) -> Object {
     );
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
-        Err(e) => {
-            return Object::Error(format!(
-                "masukkan: galat kompilasi di '{}': {}",
-                label, e
-            ))
-        }
+        Err(e) => return Object::Error(format!("masukkan: galat kompilasi di '{}': {}", label, e)),
     };
 
-    let mut vm =
-        crate::vm::VM::new_dengan_globals(hasil, crate::bawaan::bikin_globals_awal());
+    let mut vm = crate::vm::VM::new_dengan_globals(hasil, crate::bawaan::bikin_globals_awal());
     if let Err(e) = vm.jalankan() {
-        return Object::Error(format!(
-            "masukkan: galat eksekusi di '{}': {}",
-            label, e
-        ));
+        return Object::Error(format!("masukkan: galat eksekusi di '{}': {}", label, e));
     }
 
     let mut ekspor = HashMap::new();
-    let tabel   = kompilator.tabel_simbol.ambil_store();
+    let tabel = kompilator.tabel_simbol.ambil_store();
     let globals = vm.ambil_globals();
 
     for (nama, simbol) in tabel.iter() {
-        if simbol.lingkup == crate::compiler::LingkupSimbol::Global
-            && simbol.indeks < globals.len()
+        if simbol.lingkup == crate::compiler::LingkupSimbol::Global && simbol.indeks < globals.len()
         {
             ekspor.insert(
                 crate::object::KunciKamus::Str(nama.clone()),

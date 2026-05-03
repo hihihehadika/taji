@@ -6,6 +6,33 @@
 use std::fmt;
 
 // ═══════════════════════════════════════════════════════════
+//  Posisi Sumber (Source Location)
+// ═══════════════════════════════════════════════════════════
+
+/// Menyimpan lokasi (baris dan kolom) dari suatu simpul AST
+/// dalam kode sumber asli, untuk keperluan pelaporan galat yang akurat.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Posisi {
+    /// Nomor baris (1-indexed).
+    pub baris: usize,
+    /// Nomor kolom (1-indexed).
+    pub kolom: usize,
+    /// Panjang teks/token (jumlah karakter).
+    pub panjang: usize,
+}
+
+impl Posisi {
+    pub fn new(baris: usize, kolom: usize, panjang: usize) -> Self {
+        Posisi { baris, kolom, panjang }
+    }
+
+    /// Posisi kosong / tidak diketahui.
+    pub fn kosong() -> Self {
+        Posisi { baris: 0, kolom: 0, panjang: 0 }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Program
 // ═══════════════════════════════════════════════════════════
 
@@ -175,6 +202,8 @@ impl fmt::Display for Expression {
 #[derive(Debug, Clone)]
 pub struct Pengenal {
     pub value: String,
+    /// Lokasi dalam kode sumber. Digunakan untuk pelaporan galat.
+    pub posisi: Posisi,
 }
 
 impl fmt::Display for Pengenal {

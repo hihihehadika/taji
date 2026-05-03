@@ -108,7 +108,26 @@ fn run_file(filename: &str) {
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
         Err(e) => {
-            eprintln!("KESALAHAN KOMPILASI: {}", e);
+            use taji_lib::compiler::galat::GalatKompilasi;
+            match &e {
+                GalatKompilasi::SimbolTidakTerdefinisi(nama, baris, kolom, saran) => {
+                    let msg = taji_lib::keluaran::format_galat_dengan_cuplikan(
+                        "KESALAHAN KOMPILASI",
+                        &format!("simbol '{}' belum dideklarasikan", nama),
+                        filename,
+                        &isi,
+                        *baris,
+                        *kolom,
+                        nama.len(),
+                        saran.clone(),
+                        vec![], // Tidak ada jejak untuk galat kompilasi
+                    );
+                    eprintln!("{}", msg);
+                }
+                _ => {
+                    eprintln!("KESALAHAN KOMPILASI:\n  = {}", e);
+                }
+            }
             process::exit(1);
         }
     };
@@ -119,7 +138,26 @@ fn run_file(filename: &str) {
     match vm.jalankan() {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("KESALAHAN VM: {}", e);
+            use taji_lib::vm::galat::GalatVM;
+            match &e {
+                GalatVM::DenganBaris(info) => {
+                    let msg = taji_lib::keluaran::format_galat_dengan_cuplikan(
+                        "KESALAHAN RUNTIME",
+                        &info.sumber.to_string(),
+                        filename,
+                        &isi,
+                        info.baris,
+                        info.kolom,
+                        info.panjang,
+                        None,
+                        info.jejak.clone(),
+                    );
+                    eprintln!("{}", msg);
+                }
+                _ => {
+                    eprintln!("KESALAHAN VM:\n  = {}", e);
+                }
+            }
             process::exit(1);
         }
     }

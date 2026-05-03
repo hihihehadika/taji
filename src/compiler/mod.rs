@@ -15,10 +15,10 @@ pub struct Kompilator {
     pub instruksi: Vec<u8>,
     pub konstanta: Vec<Object>,
     pub tabel_simbol: TabelSimbol,
-    /// Pemetaan offset instruksi -> nomor baris sumber.
-    pub tabel_baris: Vec<usize>,
-    /// Nomor baris saat ini yang sedang dikompilasi.
-    baris_sekarang: usize,
+    /// Pemetaan offset instruksi -> (baris, kolom, panjang) kode sumber.
+    pub tabel_baris: Vec<(usize, usize, usize)>,
+    /// Posisi (baris, kolom, panjang) saat ini yang sedang dikompilasi.
+    posisi_sekarang: (usize, usize, usize),
     /// Stack patch offset untuk `berhenti` di setiap level loop
     loop_berhenti_patches: Vec<Vec<usize>>,
     /// Stack target offset untuk `lanjut` di setiap level loop
@@ -29,8 +29,8 @@ pub struct HasilKompilasi {
     pub instruksi: Vec<u8>,
     pub konstanta: Vec<Object>,
     pub tabel_simbol: TabelSimbol,
-    /// Pemetaan offset instruksi -> nomor baris sumber untuk pelaporan galat VM.
-    pub tabel_baris: Vec<usize>,
+    /// Pemetaan offset instruksi -> (baris, kolom, panjang) kode sumber untuk pelaporan galat VM.
+    pub tabel_baris: Vec<(usize, usize, usize)>,
 }
 
 impl HasilKompilasi {
@@ -40,6 +40,7 @@ impl HasilKompilasi {
             jumlah_parameter: 0,
             jumlah_lokal: self.tabel_simbol.jumlah_definisi,
             nama: Some("utama".to_string()),
+            tabel_baris: self.tabel_baris.clone(),
             pool_konstanta_lokal: None,
         }
     }
@@ -58,7 +59,7 @@ impl Kompilator {
             konstanta: Vec::new(),
             tabel_simbol: TabelSimbol::new(),
             tabel_baris: Vec::new(),
-            baris_sekarang: 1,
+            posisi_sekarang: (1, 1, 1),
             loop_berhenti_patches: Vec::new(),
             loop_lanjut_target: Vec::new(),
         }
@@ -70,15 +71,20 @@ impl Kompilator {
             konstanta: k,
             tabel_simbol: ts,
             tabel_baris: Vec::new(),
-            baris_sekarang: 1,
+            posisi_sekarang: (1, 1, 1),
             loop_berhenti_patches: Vec::new(),
             loop_lanjut_target: Vec::new(),
         }
     }
 
-    /// Memperbarui nomor baris yang sedang dikompilasi.
+    /// Memperbarui posisi (baris, kolom, panjang) yang sedang dikompilasi.
+    pub fn tetapkan_posisi(&mut self, baris: usize, kolom: usize, panjang: usize) {
+        self.posisi_sekarang = (baris, kolom, panjang);
+    }
+
+    /// Alias untuk kompatibilitas; hanya memperbarui baris.
     pub fn tetapkan_baris(&mut self, baris: usize) {
-        self.baris_sekarang = baris;
+        self.posisi_sekarang = (baris, self.posisi_sekarang.1, self.posisi_sekarang.2);
     }
 
     pub fn kompilasi(&mut self, program: &Program) -> Result<HasilKompilasi, GalatKompilasi> {
@@ -182,10 +188,17 @@ impl Kompilator {
 
             // ── Pengenal ──
             Expression::Pengenal(id) => {
-                let sim = self
-                    .tabel_simbol
-                    .selesaikan(&id.value)
-                    .ok_or_else(|| GalatKompilasi::SimbolTidakTerdefinisi(id.value.clone()))?;
+                // Tetapkan posisi sumber dari node Pengenal sebelum emit
+                self.tetapkan_posisi(id.posisi.baris, id.posisi.kolom, id.posisi.panjang);
+                let sim = self.tabel_simbol.selesaikan(&id.value).ok_or_else(|| {
+                    let saran = self.tabel_simbol.cari_saran(&id.value);
+                    GalatKompilasi::SimbolTidakTerdefinisi(
+                        id.value.clone(),
+                        id.posisi.baris,
+                        id.posisi.kolom,
+                        saran,
+                    )
+                })?;
                 self.emit_ambil_simbol(&sim)?;
                 Ok(())
             }
@@ -221,10 +234,10 @@ impl Kompilator {
             Expression::Untuk(utk) => self.kompilasi_untuk(utk),
 
             // ── Fungsi Literal ──
-            Expression::FungsiLiteral(fl) => self.kompilasi_fungsi(&fl.parameters, &fl.body),
+            Expression::FungsiLiteral(fl) => self.kompilasi_fungsi(&fl.parameters, &fl.body, None),
 
             // ── Fungsi Panah (Arrow Function) ──
-            Expression::FungsiPanah(fp) => self.kompilasi_fungsi(&fp.parameters, &fp.body),
+            Expression::FungsiPanah(fp) => self.kompilasi_fungsi(&fp.parameters, &fp.body, None),
 
             // ── Panggilan Fungsi ──
             Expression::Panggilan(pg) => {
@@ -297,10 +310,15 @@ impl Kompilator {
 
         match &*ps.left {
             Expression::Pengenal(id) => {
-                let sim = self
-                    .tabel_simbol
-                    .selesaikan(&id.value)
-                    .ok_or_else(|| GalatKompilasi::SimbolTidakTerdefinisi(id.value.clone()))?;
+                let sim = self.tabel_simbol.selesaikan(&id.value).ok_or_else(|| {
+                    let saran = self.tabel_simbol.cari_saran(&id.value);
+                    GalatKompilasi::SimbolTidakTerdefinisi(
+                        id.value.clone(),
+                        id.posisi.baris,
+                        id.posisi.kolom,
+                        saran,
+                    )
+                })?;
 
                 if is_compound {
                     self.emit_ambil_simbol(&sim)?;
@@ -562,12 +580,13 @@ impl Kompilator {
         &mut self,
         parameters: &[Pengenal],
         body: &BlokPernyataan,
+        nama: Option<String>,
     ) -> Result<(), GalatKompilasi> {
         let mut k_anak = Kompilator::new_dengan_state(
             TabelSimbol::new_terlampir(self.tabel_simbol.clone()),
             self.konstanta.clone(),
         );
-        k_anak.baris_sekarang = self.baris_sekarang;
+        k_anak.posisi_sekarang = self.posisi_sekarang;
         for param in parameters {
             k_anak.tabel_simbol.definisikan(&param.value)?;
         }
@@ -580,7 +599,8 @@ impl Kompilator {
             instruksi: k_anak.instruksi,
             jumlah_parameter: parameters.len(),
             jumlah_lokal: k_anak.tabel_simbol.jumlah_definisi,
-            nama: None,
+            nama,
+            tabel_baris: k_anak.tabel_baris,
             pool_konstanta_lokal: None,
         };
         self.konstanta = k_anak.konstanta;
@@ -636,16 +656,17 @@ impl Kompilator {
     fn emit(&mut self, op: OpCode, operands: &[usize]) -> Result<usize, GalatKompilasi> {
         let pos = self.instruksi.len();
         encode(&mut self.instruksi, op, operands);
-        // Rekam pemetaan offset -> baris untuk setiap byte instruksi yang ditulis
+        // Rekam pemetaan offset -> (baris, kolom) untuk setiap byte instruksi yang ditulis
         let jumlah_baru = self.instruksi.len() - pos;
         for _ in 0..jumlah_baru {
-            self.tabel_baris.push(self.baris_sekarang);
+            self.tabel_baris.push(self.posisi_sekarang);
         }
         Ok(pos)
     }
 
     fn emit_raw_byte(&mut self, b: u8) {
         self.instruksi.push(b);
+        self.tabel_baris.push(self.posisi_sekarang);
     }
 
     /// Emit instruksi lompat dengan placeholder operand 0x0000.

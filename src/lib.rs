@@ -11,12 +11,14 @@ pub mod code;
 pub mod compiler;
 pub mod keluaran;
 pub mod lexer;
+pub mod masukan;
 pub mod object;
 pub mod parser;
 pub mod repl;
 pub mod token;
 pub mod tpm;
 pub mod vm;
+pub mod warna;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -51,16 +53,30 @@ pub fn jalankan_taji(kode_sumber: &str) -> String {
     }
 
     // Tahap 3: Kompilasi ke Bytecode
-    let mut kompilator = compiler::Kompilator::new_dengan_state(
-        bawaan::bikin_tabel_awal(),
-        Vec::new(),
-    );
+    let mut kompilator =
+        compiler::Kompilator::new_dengan_state(bawaan::bikin_tabel_awal(), Vec::new());
 
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
         Err(e) => {
             keluaran::ambil_dan_bersihkan_buffer();
-            return format!("GALAT KOMPILASI: {}", e);
+            use crate::compiler::galat::GalatKompilasi;
+            match &e {
+                GalatKompilasi::SimbolTidakTerdefinisi(nama, baris, kolom, saran) => {
+                    return keluaran::format_galat_dengan_cuplikan(
+                        "KESALAHAN KOMPILASI",
+                        &format!("simbol '{}' belum dideklarasikan", nama),
+                        "Playground",
+                        kode_sumber,
+                        *baris,
+                        *kolom,
+                        nama.len(),
+                        saran.clone(),
+                        vec![],
+                    );
+                }
+                _ => return format!("KESALAHAN KOMPILASI:\n  = {}", e),
+            }
         }
     };
 
@@ -76,13 +92,42 @@ pub fn jalankan_taji(kode_sumber: &str) -> String {
         if !output.is_empty() {
             output.push('\n');
         }
-        output.push_str(&format!("GALAT VM: {}", e));
+        use crate::vm::galat::GalatVM;
+        match &e {
+            GalatVM::DenganBaris(info) => {
+                output.push_str(&keluaran::format_galat_dengan_cuplikan(
+                    "KESALAHAN RUNTIME",
+                    &info.sumber.to_string(),
+                    "Playground",
+                    kode_sumber,
+                    info.baris,
+                    info.kolom,
+                    info.panjang,
+                    None,
+                    info.jejak.clone(),
+                ));
+            }
+            _ => output.push_str(&format!("KESALAHAN VM:\n  = {}", e)),
+        }
         return output;
     }
 
     // Kumpulkan semua output yang tertangkap
     let buffer = keluaran::ambil_dan_bersihkan_buffer();
+    masukan::bersihkan_antrian();
     buffer.join("\n")
+}
+
+/// Mengatur antrian masukan untuk fungsi `tanya()` di lingkungan WASM.
+///
+/// Frontend TypeScript memanggil fungsi ini sebelum `jalankan_taji()`
+/// untuk menyediakan baris-baris input yang akan dikonsumsi oleh
+/// setiap pemanggilan `tanya()` di dalam skrip Taji.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn atur_antrian_masukan(input_mentah: &str) {
+    let baris: Vec<String> = input_mentah.split('\n').map(|s| s.to_string()).collect();
+    masukan::atur_antrian(baris);
 }
 
 /// Versi non-WASM dari jalankan_taji untuk pengujian native.
@@ -106,16 +151,30 @@ pub fn jalankan_taji(kode_sumber: &str) -> String {
         return galat;
     }
 
-    let mut kompilator = compiler::Kompilator::new_dengan_state(
-        bawaan::bikin_tabel_awal(),
-        Vec::new(),
-    );
+    let mut kompilator =
+        compiler::Kompilator::new_dengan_state(bawaan::bikin_tabel_awal(), Vec::new());
 
     let hasil = match kompilator.kompilasi(&program) {
         Ok(h) => h,
         Err(e) => {
             keluaran::ambil_dan_bersihkan_buffer();
-            return format!("GALAT KOMPILASI: {}", e);
+            use crate::compiler::galat::GalatKompilasi;
+            match &e {
+                GalatKompilasi::SimbolTidakTerdefinisi(nama, baris, kolom, saran) => {
+                    return keluaran::format_galat_dengan_cuplikan(
+                        "KESALAHAN KOMPILASI",
+                        &format!("simbol '{}' belum dideklarasikan", nama),
+                        "Playground",
+                        kode_sumber,
+                        *baris,
+                        *kolom,
+                        nama.len(),
+                        saran.clone(),
+                        vec![],
+                    );
+                }
+                _ => return format!("KESALAHAN KOMPILASI:\n  = {}", e),
+            }
         }
     };
 
@@ -127,7 +186,23 @@ pub fn jalankan_taji(kode_sumber: &str) -> String {
         if !output.is_empty() {
             output.push('\n');
         }
-        output.push_str(&format!("GALAT VM: {}", e));
+        use crate::vm::galat::GalatVM;
+        match &e {
+            GalatVM::DenganBaris(info) => {
+                output.push_str(&keluaran::format_galat_dengan_cuplikan(
+                    "KESALAHAN RUNTIME",
+                    &info.sumber.to_string(),
+                    "Playground",
+                    kode_sumber,
+                    info.baris,
+                    info.kolom,
+                    info.panjang,
+                    None,
+                    info.jejak.clone(),
+                ));
+            }
+            _ => output.push_str(&format!("KESALAHAN VM:\n  = {}", e)),
+        }
         return output;
     }
 
