@@ -285,5 +285,5 @@ Kode Sumber (.tj)
 <br>
 <p align="center">
   Bahasa pemrograman Taji<br>
-  <b>Oleh Dika</b>
+  <b>Oleh Dika.</b>
 </p>
